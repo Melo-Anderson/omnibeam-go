@@ -80,4 +80,3 @@ func TestCompositeSecretResolver(t *testing.T) {
 		}
 	})
 }
-

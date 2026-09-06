@@ -220,7 +220,6 @@ func readMapStringInt64(r io.Reader) (map[string]int64, error) {
 	return m, nil
 }
 
-
 // Beam coder adapters
 
 func encGenericRecord(v domain.GenericRecord) ([]byte, error) {

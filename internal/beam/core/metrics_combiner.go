@@ -129,4 +129,3 @@ func (fn *MetricsCombinerFn) ExtractOutput(a MetricsAccumulator) domain.Pipeline
 		OriginMetrics:    a.OriginMetrics,
 	}
 }
-

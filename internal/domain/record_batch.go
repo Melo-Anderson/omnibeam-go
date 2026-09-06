@@ -114,9 +114,9 @@ func NewRecordBatch(schema Schema, capacity int) *RecordBatch {
 	return b
 }
 
-func (b *RecordBatch) Schema() Schema   { return b.schema }
-func (b *RecordBatch) Capacity() int   { return b.capacity }
-func (b *RecordBatch) RowCount() int   { return b.rowCount }
+func (b *RecordBatch) Schema() Schema    { return b.schema }
+func (b *RecordBatch) Capacity() int     { return b.capacity }
+func (b *RecordBatch) RowCount() int     { return b.rowCount }
 func (b *RecordBatch) SetRowCount(n int) { b.rowCount = n }
 
 // AppendRow appends a GenericRecord into the columnar batch.

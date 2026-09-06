@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/omnibeam/dataflow-compute-go/internal/domain"
-	"github.com/omnibeam/dataflow-compute-go/internal/ports"
 	_ "github.com/omnibeam/dataflow-compute-go/internal/adapters/paged_api/sink"
 	_ "github.com/omnibeam/dataflow-compute-go/internal/adapters/paged_api/source"
 	_ "github.com/omnibeam/dataflow-compute-go/internal/adapters/partitions/sql"
+	"github.com/omnibeam/dataflow-compute-go/internal/domain"
+	"github.com/omnibeam/dataflow-compute-go/internal/ports"
 )
 
 type dummyStorage struct{}

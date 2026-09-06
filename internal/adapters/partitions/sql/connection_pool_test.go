@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/omnibeam/dataflow-compute-go/internal/adapters/secrets"
 	sql_adapter "github.com/omnibeam/dataflow-compute-go/internal/adapters/partitions/sql"
+	"github.com/omnibeam/dataflow-compute-go/internal/adapters/secrets"
 	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 )
 
@@ -89,4 +89,3 @@ func TestOpenDB_ConnectionURI(t *testing.T) {
 		}
 	})
 }
-

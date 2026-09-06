@@ -49,7 +49,6 @@ func writeNullMask(w io.Writer, values []domain.FieldValue) error {
 	return err
 }
 
-
 func readNullMaskWithBuf(r io.Reader, n int, stackBuf []byte) ([]byte, error) {
 	maskLen := (n + 7) / 8
 	var mask []byte

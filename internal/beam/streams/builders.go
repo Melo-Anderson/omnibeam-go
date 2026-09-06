@@ -18,7 +18,7 @@ type ByteStreamBeamSource struct {
 // Compile-time assertion: ByteStreamBeamSource must satisfy ports.BeamSourceBuilder (LSP).
 var _ ports.BeamSourceBuilder = (*ByteStreamBeamSource)(nil)
 
-// BuildSource implements ports.BeamSourceBuilder for byte 
+// BuildSource implements ports.BeamSourceBuilder for byte
 // Reshuffle is applied when multiple URIs are present to prevent runner fusion
 // from serializing all file chunks on a single worker.
 func (b *ByteStreamBeamSource) BuildSource(s beam.Scope) beam.PCollection {

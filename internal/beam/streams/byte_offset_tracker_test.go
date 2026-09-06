@@ -246,6 +246,3 @@ func TestByteOffsetTracker_SubMegabyteLiquidSplits(t *testing.T) {
 		t.Errorf("expected positive progress, got done=%f remaining=%f", done, remaining)
 	}
 }
-
-
-

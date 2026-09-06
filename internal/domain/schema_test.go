@@ -126,4 +126,3 @@ func TestSchema_ApplyDefaultsAndValidate(t *testing.T) {
 		t.Error("expected error for invalid on_overflow, got nil")
 	}
 }
-

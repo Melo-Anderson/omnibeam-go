@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-		"github.com/omnibeam/dataflow-compute-go/internal/domain"
+	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 )
 
 func TestAuditSinkDoFn_WritesJSONL(t *testing.T) {

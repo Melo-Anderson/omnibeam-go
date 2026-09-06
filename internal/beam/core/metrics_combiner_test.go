@@ -117,4 +117,3 @@ func TestPipeline_MetricsCombiner_Integration(t *testing.T) {
 		t.Fatalf("ptest failed executing metrics combiner pipeline: %v", err)
 	}
 }
-

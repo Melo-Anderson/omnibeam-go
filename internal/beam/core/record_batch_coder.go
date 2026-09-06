@@ -10,17 +10,18 @@ import (
 
 // RecordBatchEncoder serializes a RecordBatch into a compact binary format.
 // Format:
-//   [Header: rowCount uint32, numFields uint32]
-//   [ValidMask: numWords uint64...]
-//   For each column:
-//     [NullBitmap: numWords uint64...]
-//     If Numeric:
-//       [NumCols: rowCount uint64...]
-//       If Decimal:
-//         [ScaleCols: rowCount int32...]
-//     Else:
-//       [StrCols: (len uint32, bytes)...]
-//   [AuditValues: per row (count uint16, (keyLen, key, valLen, val)...)]
+//
+//	[Header: rowCount uint32, numFields uint32]
+//	[ValidMask: numWords uint64...]
+//	For each column:
+//	  [NullBitmap: numWords uint64...]
+//	  If Numeric:
+//	    [NumCols: rowCount uint64...]
+//	    If Decimal:
+//	      [ScaleCols: rowCount int32...]
+//	  Else:
+//	    [StrCols: (len uint32, bytes)...]
+//	[AuditValues: per row (count uint16, (keyLen, key, valLen, val)...)]
 type RecordBatchEncoder struct {
 	w io.Writer
 }

@@ -140,4 +140,3 @@ func (s *BundleFileStager) CommitOrAbort(ctx context.Context, closer io.Closer) 
 func (s *BundleFileStager) Drain(ctx context.Context) error {
 	return s.CommitOrAbort(ctx, nil)
 }
-

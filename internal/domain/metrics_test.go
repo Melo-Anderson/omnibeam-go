@@ -150,5 +150,3 @@ func TestPipelineMetrics_OriginConservation(t *testing.T) {
 		t.Errorf("expected per-origin conservation to fail when counts do not match")
 	}
 }
-
-

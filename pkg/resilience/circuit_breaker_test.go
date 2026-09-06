@@ -157,4 +157,3 @@ func TestCircuitBreaker_HalfOpenRequiresMultipleSuccesses(t *testing.T) {
 		t.Fatalf("expected Closed after 3 successes, got %v", cb.State())
 	}
 }
-

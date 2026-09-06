@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-		"github.com/omnibeam/dataflow-compute-go/internal/domain"
+	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 )
 
 func TestHTTPClient_RateLimiter(t *testing.T) {
@@ -252,4 +252,3 @@ func TestHTTPClient_InjectsW3CTraceHeaders(t *testing.T) {
 		t.Fatalf("expected traceparent %q, got %q", carrier["traceparent"], capturedTraceparent)
 	}
 }
-

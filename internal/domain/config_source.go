@@ -8,12 +8,12 @@ type SourceConfig struct {
 	Type           string   `json:"type"`
 	Path           string   `json:"path,omitempty"`
 	Paths          []string `json:"paths,omitempty"`
-	Format         string   `json:"format"`                      // "csv", "jsonl"
-	Delimiter      string   `json:"delimiter"`                   // ",", ";", "|", "\t"
-	QuoteChar      string   `json:"quote_char,omitempty"`        // "\"", "'", etc.
-	Multiline      bool     `json:"multiline,omitempty"`         // true for CSVs with newlines inside quotes
-	Charset        string   `json:"charset"`                     // "utf-8", "iso-8859-1", "windows-1252"
-	Compression    string   `json:"compression"`                 // "none", "gzip", "snappy", "zstd", "bzip2"
+	Format         string   `json:"format"`                     // "csv", "jsonl"
+	Delimiter      string   `json:"delimiter"`                  // ",", ";", "|", "\t"
+	QuoteChar      string   `json:"quote_char,omitempty"`       // "\"", "'", etc.
+	Multiline      bool     `json:"multiline,omitempty"`        // true for CSVs with newlines inside quotes
+	Charset        string   `json:"charset"`                    // "utf-8", "iso-8859-1", "windows-1252"
+	Compression    string   `json:"compression"`                // "none", "gzip", "snappy", "zstd", "bzip2"
 	ChunkSizeBytes int64    `json:"chunk_size_bytes,omitempty"` // Custom chunk size for ByteStream offset splitting
 	Schema         Schema   `json:"schema"`
 }

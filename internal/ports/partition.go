@@ -26,4 +26,3 @@ type PartitionedReader interface {
 	// Close releases all resources held by the reader (e.g., connection pools).
 	Close() error
 }
-

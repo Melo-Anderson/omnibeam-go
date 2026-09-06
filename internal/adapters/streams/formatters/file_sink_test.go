@@ -9,7 +9,7 @@ import (
 	"io"
 	"testing"
 
-		"github.com/omnibeam/dataflow-compute-go/internal/domain"
+	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 )
 
 type memoryStorage struct {

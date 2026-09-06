@@ -86,4 +86,3 @@ func WrapCompressor(w io.Writer, compression string) (io.Writer, io.Closer, erro
 		return nil, nil, fmt.Errorf("unsupported output compression format: %q (supported: gzip, zstd, snappy, none)", compression)
 	}
 }
-

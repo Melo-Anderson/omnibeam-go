@@ -148,4 +148,3 @@ func TestDoubleBufferedPrefetchReader_ContinuousRead(t *testing.T) {
 		t.Fatal("read data does not match source")
 	}
 }
-

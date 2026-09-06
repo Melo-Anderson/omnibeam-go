@@ -79,12 +79,24 @@ func TestFieldValue_String(t *testing.T) {
 		expected string
 	}{
 		{name: "Null value", build: func() domain.FieldValue { return domain.FieldValue{IsNull: true, Type: domain.TypeString} }, expected: ""},
-		{name: "String value", build: func() domain.FieldValue { r := domain.NewGenericRecord("s", 1); r.SetString(0, "hello"); return *r.Get(0) }, expected: "hello"},
+		{name: "String value", build: func() domain.FieldValue {
+			r := domain.NewGenericRecord("s", 1)
+			r.SetString(0, "hello")
+			return *r.Get(0)
+		}, expected: "hello"},
 		{name: "Int64 value", build: func() domain.FieldValue { r := domain.NewGenericRecord("s", 1); r.SetInt64(0, 42); return *r.Get(0) }, expected: "42"},
-		{name: "Float64 value", build: func() domain.FieldValue { r := domain.NewGenericRecord("s", 1); r.SetFloat64(0, 3.14); return *r.Get(0) }, expected: "3.14"},
+		{name: "Float64 value", build: func() domain.FieldValue {
+			r := domain.NewGenericRecord("s", 1)
+			r.SetFloat64(0, 3.14)
+			return *r.Get(0)
+		}, expected: "3.14"},
 		{name: "Bool value true", build: func() domain.FieldValue { r := domain.NewGenericRecord("s", 1); r.SetBool(0, true); return *r.Get(0) }, expected: "true"},
 		{name: "Bool value false", build: func() domain.FieldValue { r := domain.NewGenericRecord("s", 1); r.SetBool(0, false); return *r.Get(0) }, expected: "false"},
-		{name: "Decimal value", build: func() domain.FieldValue { r := domain.NewGenericRecord("s", 1); r.SetDecimal(0, 14999, 2); return *r.Get(0) }, expected: "149.99"},
+		{name: "Decimal value", build: func() domain.FieldValue {
+			r := domain.NewGenericRecord("s", 1)
+			r.SetDecimal(0, 14999, 2)
+			return *r.Get(0)
+		}, expected: "149.99"},
 	}
 
 	for _, tt := range tests {
@@ -251,4 +263,3 @@ func TestFormatDecimal_ZeroPaddingAndNegative(t *testing.T) {
 		}
 	}
 }
-

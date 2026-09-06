@@ -25,7 +25,6 @@ func ParseGCSURI(rawURI string) (*GCSPath, error) {
 		return nil, fmt.Errorf("invalid gcs uri %q: missing bucket or object key", rawURI)
 	}
 
-
 	return &GCSPath{
 		Bucket: parts[0],
 		Object: parts[1],

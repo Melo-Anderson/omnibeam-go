@@ -18,7 +18,7 @@ func init() {
 
 // AuditEnricherFn enriches a GenericRecord with pipeline-level audit metadata.
 // It always clones AuditFields to preserve Beam's immutability contract across
-// parallel 
+// parallel
 type AuditEnricherFn struct{}
 
 // NewAuditEnricherFn constructs a new AuditEnricherFn.

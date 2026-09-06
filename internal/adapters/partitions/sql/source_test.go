@@ -133,4 +133,3 @@ func TestGenericSQLSource_StreamingAndPartitions(t *testing.T) {
 		}
 	})
 }
-

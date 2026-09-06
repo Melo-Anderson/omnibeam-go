@@ -233,4 +233,3 @@ func CompileParquetDirectRowEncoder(domainSchema *domain.Schema) (ParquetDirectR
 		return parquet.Row(dest)
 	}, numCols
 }
-

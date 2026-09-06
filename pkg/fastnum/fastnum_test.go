@@ -28,7 +28,7 @@ func TestParseInt64(t *testing.T) {
 		{"abc", 0, true},
 		{"12a34", 0, true},
 		{"-", 0, true},
-		{"99999999999999999999", 0, true}, // overflow
+		{"99999999999999999999", 0, true},  // overflow
 		{"-99999999999999999999", 0, true}, // underflow
 	}
 

@@ -3,7 +3,7 @@ package core
 import (
 	"testing"
 
-		"github.com/omnibeam/dataflow-compute-go/internal/domain"
+	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 )
 
 func TestAuditEnricherFn_ProcessElement_CloneIsolation(t *testing.T) {

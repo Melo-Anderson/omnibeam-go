@@ -3,8 +3,7 @@ package paged_api
 
 import (
 	"testing"
-
-	)
+)
 
 func TestPageRangeTracker_Claim(t *testing.T) {
 	tests := []struct {

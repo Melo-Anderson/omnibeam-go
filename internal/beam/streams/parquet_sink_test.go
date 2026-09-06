@@ -8,7 +8,7 @@ import (
 	"io"
 	"testing"
 
-		"github.com/omnibeam/dataflow-compute-go/internal/domain"
+	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 )
 
 type fakeStorageWriter struct {
@@ -55,25 +55,25 @@ func (n *nopWriteCloser) Close() error {
 
 func TestParquetSinkDoFn_HappyPath(t *testing.T) {
 	tests := []struct {
-		name        string
-		recordIDs   []int64
-		wantCreate  int
-		wantCommit  bool
-		wantAbort   bool
+		name       string
+		recordIDs  []int64
+		wantCreate int
+		wantCommit bool
+		wantAbort  bool
 	}{
 		{
-			name:        "writes records and commits temp file",
-			recordIDs:   []int64{10, 20, 30},
-			wantCreate:  1,
-			wantCommit:  true,
-			wantAbort:   false,
+			name:       "writes records and commits temp file",
+			recordIDs:  []int64{10, 20, 30},
+			wantCreate: 1,
+			wantCommit: true,
+			wantAbort:  false,
 		},
 		{
-			name:        "empty bundle does not create or commit temp file",
-			recordIDs:   []int64{},
-			wantCreate:  0,
-			wantCommit:  false,
-			wantAbort:   false,
+			name:       "empty bundle does not create or commit temp file",
+			recordIDs:  []int64{},
+			wantCreate: 0,
+			wantCommit: false,
+			wantAbort:  false,
 		},
 	}
 

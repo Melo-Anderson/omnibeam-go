@@ -106,4 +106,3 @@ func WrapDecompressor(r io.Reader, compType string) (io.Reader, error) {
 		return nil, fmt.Errorf("unsupported compression format: %q (supported: gzip, zstd, snappy, bzip2, none)", compType)
 	}
 }
-

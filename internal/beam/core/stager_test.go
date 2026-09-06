@@ -141,4 +141,3 @@ func TestBundleFileStager_Drain(t *testing.T) {
 		t.Errorf("expected 1 committed file after Drain, got %d", len(storage.comitted))
 	}
 }
-

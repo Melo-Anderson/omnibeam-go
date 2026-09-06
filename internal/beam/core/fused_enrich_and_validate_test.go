@@ -181,4 +181,3 @@ func TestFusedEnrichAndValidateFn_ProcessElement_NilPlanRoutesDLQ(t *testing.T) 
 		t.Errorf("expected FailedColumn='_setup', got %q", emittedDLQ.FailedColumn)
 	}
 }
-

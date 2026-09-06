@@ -54,47 +54,47 @@ var stdMatrixSchema = domain.Schema{
 func TestE2E_GenericMatrix_AllSourcesAndDestinations(t *testing.T) {
 	scenarios := []MatrixScenario{
 		{
-			Name: "Matrix-01: CSV [Comma, UTF-8, Raw] -> Parquet",
+			Name:       "Matrix-01: CSV [Comma, UTF-8, Raw] -> Parquet",
 			SourceKind: "file", SourceFormat: "csv", Delimiter: ",", Charset: "UTF-8", Rows: 100,
 			DestType: "storage", DestFormat: "parquet",
 		},
 		{
-			Name: "Matrix-02: CSV [Semicolon, ISO-8859-1, Gzip] -> JSONL",
+			Name:       "Matrix-02: CSV [Semicolon, ISO-8859-1, Gzip] -> JSONL",
 			SourceKind: "file", SourceFormat: "csv", Delimiter: ";", Charset: "ISO-8859-1", Compression: "gzip", Rows: 80,
 			DestType: "storage", DestFormat: "jsonl",
 		},
 		{
-			Name: "Matrix-03: CSV [Pipe, UTF-8, Zstd] -> CSV [Semicolon]",
+			Name:       "Matrix-03: CSV [Pipe, UTF-8, Zstd] -> CSV [Semicolon]",
 			SourceKind: "file", SourceFormat: "csv", Delimiter: "|", Charset: "UTF-8", Compression: "zstd", Rows: 50,
 			DestType: "storage", DestFormat: "csv", DestDelimiter: ";",
 		},
 		{
-			Name: "Matrix-04: JSONL [Raw, UTF-8] -> Parquet",
+			Name:       "Matrix-04: JSONL [Raw, UTF-8] -> Parquet",
 			SourceKind: "file", SourceFormat: "jsonl", Rows: 120,
 			DestType: "storage", DestFormat: "parquet",
 		},
 		{
-			Name: "Matrix-05: JSONL [Zstd] -> JSONL",
+			Name:       "Matrix-05: JSONL [Zstd] -> JSONL",
 			SourceKind: "file", SourceFormat: "jsonl", Compression: "zstd", Rows: 60,
 			DestType: "storage", DestFormat: "jsonl",
 		},
 		{
-			Name: "Matrix-06: REST API [PageNumber] -> Parquet",
+			Name:       "Matrix-06: REST API [PageNumber] -> Parquet",
 			SourceKind: "rest_api", PaginationType: domain.PaginationPageNumber, Rows: 4,
 			DestType: "storage", DestFormat: "parquet",
 		},
 		{
-			Name: "Matrix-07: REST API [OffsetLimit] -> CSV",
+			Name:       "Matrix-07: REST API [OffsetLimit] -> CSV",
 			SourceKind: "rest_api", PaginationType: domain.PaginationOffsetLimit, Rows: 4,
 			DestType: "storage", DestFormat: "csv", DestDelimiter: ",",
 		},
 		{
-			Name: "Matrix-08: CSV Ingestion -> Export to REST API Sink",
+			Name:       "Matrix-08: CSV Ingestion -> Export to REST API Sink",
 			SourceKind: "file", SourceFormat: "csv", Delimiter: ",", Rows: 30,
 			DestType: "rest_api",
 		},
 		{
-			Name: "Matrix-09: Corrupt CSV Input -> Valid Parquet + Quarantined DLQ",
+			Name:       "Matrix-09: Corrupt CSV Input -> Valid Parquet + Quarantined DLQ",
 			SourceKind: "file", SourceFormat: "csv", Delimiter: ",", Rows: 30, CorruptRows: 10,
 			DestType: "storage", DestFormat: "parquet",
 		},

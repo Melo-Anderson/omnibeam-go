@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-		"github.com/omnibeam/dataflow-compute-go/internal/domain"
+	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 	"github.com/omnibeam/dataflow-compute-go/internal/ports"
 )
 
@@ -33,7 +33,6 @@ func (r *fakePartitionedReader) Close() error {
 	r.closed = true
 	return nil
 }
-
 
 func TestPartitionQuerySourceSDF_ProcessElement(t *testing.T) {
 	rec1 := domain.NewGenericRecord("schema-1", 1)
@@ -216,4 +215,3 @@ func TestPartitionQuerySourceSDF_ProcessElement_ChannelError(t *testing.T) {
 		t.Error("expected error from channel error, got nil")
 	}
 }
-

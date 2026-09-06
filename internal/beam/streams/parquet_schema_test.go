@@ -225,4 +225,3 @@ func BenchmarkCompileParquetDirectRowEncoder(b *testing.B) {
 		_ = encoder(rec, rowBuf)
 	}
 }
-

@@ -975,6 +975,3 @@ func TestSourceConfig_PathsAndAllPaths(t *testing.T) {
 		}
 	})
 }
-
-
-

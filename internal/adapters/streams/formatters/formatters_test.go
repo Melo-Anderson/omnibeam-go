@@ -3,7 +3,7 @@ package formatters
 import (
 	"testing"
 
-		"github.com/omnibeam/dataflow-compute-go/internal/domain"
+	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 )
 
 func TestCSVFormatter(t *testing.T) {
@@ -167,4 +167,3 @@ func TestBuildFormatter_Registry(t *testing.T) {
 		}
 	})
 }
-

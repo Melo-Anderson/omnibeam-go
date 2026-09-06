@@ -41,24 +41,24 @@ const (
 
 	// REST API Source & HTTP Transport Defaults
 	// DefaultAPIPageSize is the default record count per page for REST API endpoints when unspecified.
-	DefaultAPIPageSize            = 100
-	DefaultAPIMaxPagesLimit       = 10000
-	DefaultAPIMaxRetries          = 3
-	DefaultAPIInitialBackoffMs    = 500
-	DefaultAPIMaxBackoffMs        = 10000
-	DefaultAPITimeoutMs           = 30000
-	DefaultAPICircuitBreakerFails = 5
-	DefaultAPIRateLimitRPS        = 50.0
-	DefaultUserAgent              = "OmniBeam/1.0"
-	DefaultAcceptHeader           = "application/json"
-	DefaultContentType            = "application/json"
-	DefaultHTTPMaxIdleConns       = 100
+	DefaultAPIPageSize             = 100
+	DefaultAPIMaxPagesLimit        = 10000
+	DefaultAPIMaxRetries           = 3
+	DefaultAPIInitialBackoffMs     = 500
+	DefaultAPIMaxBackoffMs         = 10000
+	DefaultAPITimeoutMs            = 30000
+	DefaultAPICircuitBreakerFails  = 5
+	DefaultAPIRateLimitRPS         = 50.0
+	DefaultUserAgent               = "OmniBeam/1.0"
+	DefaultAcceptHeader            = "application/json"
+	DefaultContentType             = "application/json"
+	DefaultHTTPMaxIdleConns        = 100
 	DefaultHTTPMaxIdleConnsPerHost = 20
-	DefaultHTTPIdleConnTimeoutMs  = 90000
+	DefaultHTTPIdleConnTimeoutMs   = 90000
 
 	// Destination & Sinks Defaults
-	DefaultDestinationType         = "file"
-	DefaultDestinationOutputFormat = "parquet"
+	DefaultDestinationType           = "file"
+	DefaultDestinationOutputFormat   = "parquet"
 	DefaultDestinationDelimiter      = ","
 	DefaultDestinationLineTerminator = "\n"
 	DefaultDestinationCharset        = "utf-8"

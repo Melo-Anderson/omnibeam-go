@@ -160,4 +160,3 @@ func TestSliceCoders(t *testing.T) {
 func TestInit_NoDuplicateCoderPanic(t *testing.T) {
 	t.Log("partitions and paged_api init() ran alongside core init() without coder conflict")
 }
-

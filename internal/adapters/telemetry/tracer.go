@@ -22,10 +22,10 @@ import (
 // it returns a no-op shutdown function and does not attempt any network connections.
 //
 // Dynamic configuration via standard OTel environment variables:
-//  - OTEL_EXPORTER_OTLP_ENDPOINT: target gRPC endpoint (e.g. "localhost:4317" or "jaeger:4317"). If empty, tracing is no-op.
-//  - OTEL_SDK_DISABLED: if "true", disables OTel tracing completely and returns a no-op shutdown.
-//  - OTEL_TRACES_EXPORTER: if "none", disables trace export and returns a no-op shutdown.
-//  - OTEL_SERVICE_NAME: overrides the default service name.
+//   - OTEL_EXPORTER_OTLP_ENDPOINT: target gRPC endpoint (e.g. "localhost:4317" or "jaeger:4317"). If empty, tracing is no-op.
+//   - OTEL_SDK_DISABLED: if "true", disables OTel tracing completely and returns a no-op shutdown.
+//   - OTEL_TRACES_EXPORTER: if "none", disables trace export and returns a no-op shutdown.
+//   - OTEL_SERVICE_NAME: overrides the default service name.
 func InitTracer(ctx context.Context, defaultServiceName string) (shutdown func(context.Context) error, err error) {
 	if strings.EqualFold(os.Getenv("OTEL_SDK_DISABLED"), "true") || strings.EqualFold(os.Getenv("OTEL_TRACES_EXPORTER"), "none") {
 		return func(context.Context) error { return nil }, nil

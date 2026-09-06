@@ -56,7 +56,7 @@ func (b *blockingReader) Open(ctx context.Context, _ string) (io.ReadCloser, err
 	return &blockingReadCloser{ctx: ctx, blockCh: b.blockCh}, nil
 }
 func (b *blockingReader) List(_ context.Context, _ string) ([]string, error) { return nil, nil }
-func (b *blockingReader) Size(_ context.Context, _ string) (int64, error) { return 1000, nil }
+func (b *blockingReader) Size(_ context.Context, _ string) (int64, error)    { return 1000, nil }
 
 type blockingReadCloser struct {
 	ctx     context.Context
@@ -372,5 +372,3 @@ func TestByteStreamSDF_RestrictionSize(t *testing.T) {
 		})
 	}
 }
-
-

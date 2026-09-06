@@ -135,4 +135,3 @@ func (w *DelimitedFileWriter) abort(ctx context.Context, wCtx *FileWriterContext
 	}
 	return w.storage.AbortTemp(ctx, wCtx.tempURI)
 }
-

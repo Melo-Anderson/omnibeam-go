@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-		"github.com/omnibeam/dataflow-compute-go/internal/beam/core"
+	"github.com/omnibeam/dataflow-compute-go/internal/beam/core"
 	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 	"github.com/omnibeam/dataflow-compute-go/internal/ports"
 )

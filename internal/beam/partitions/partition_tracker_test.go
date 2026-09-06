@@ -3,8 +3,7 @@ package partitions
 
 import (
 	"testing"
-
-	)
+)
 
 func TestPartitionRangeTracker_ClaimAndSplit(t *testing.T) {
 	tests := []struct {
@@ -151,4 +150,3 @@ func TestPartitionRangeTracker_SubRangeSplits(t *testing.T) {
 		t.Errorf("expected positive progress, got done=%f remaining=%f", done, remaining)
 	}
 }
-

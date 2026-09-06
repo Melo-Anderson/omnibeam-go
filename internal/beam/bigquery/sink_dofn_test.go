@@ -138,4 +138,3 @@ func TestBigQuerySinkDoFn_FinishBundle_DLQNotLost(t *testing.T) {
 		t.Fatal("expected DLQ record to be emitted during FinishBundle flush — conservation invariant violated")
 	}
 }
-

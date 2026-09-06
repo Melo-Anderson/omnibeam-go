@@ -7,7 +7,7 @@ type DLQConfig struct {
 }
 
 type QualityRule struct {
-	Type   string   `json:"type"`             // "not_null", "accepted_values", "row_count_min", "row_count_max"
+	Type   string   `json:"type"` // "not_null", "accepted_values", "row_count_min", "row_count_max"
 	Column string   `json:"column,omitempty"`
 	Values []string `json:"values,omitempty"` // Valid values for accepted_values
 	Value  int64    `json:"value,omitempty"`  // Numeric threshold for row_count_min / row_count_max
