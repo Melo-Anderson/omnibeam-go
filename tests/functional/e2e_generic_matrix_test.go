@@ -203,7 +203,7 @@ func buildScenarioDest(t *testing.T, sc MatrixScenario, tmpDir string) (domain.D
 		}))
 		t.Cleanup(ts.Close)
 
-		return domain.DestinationConfig{
+		cfg := domain.DestinationConfig{
 			Type:     "rest_api",
 			Endpoint: domain.APIEndpointConfig{BaseURL: ts.URL},
 			APIOptions: domain.APISinkOptions{
@@ -211,11 +211,13 @@ func buildScenarioDest(t *testing.T, sc MatrixScenario, tmpDir string) (domain.D
 				Method:       "POST",
 				BatchSize:    10,
 			},
-		}, func(t *testing.T, count int) {
+		}
+		validator := func(t *testing.T, count int) {
 			if int(atomic.LoadInt64(&receivedCount)) != count {
 				t.Errorf("expected %d records in API sink, got %d", count, atomic.LoadInt64(&receivedCount))
 			}
 		}
+		return cfg, validator
 	}
 
 	outDir := filepath.Join(tmpDir, "output")
