@@ -42,7 +42,7 @@ type ParquetSinkDoFn struct {
 	Schema      domain.Schema `json:"schema"`
 
 	stager        *core.BundleFileStager
-	pqWriter      *parquet.Writer
+	pqWriter      *parquet.GenericWriter[any]
 	directEncoder ParquetDirectRowEncoder
 	numCols       int
 	rowBuffer     []parquet.Value
@@ -97,7 +97,7 @@ func (fn *ParquetSinkDoFn) lazyOpen(ctx context.Context) error {
 		return err
 	}
 
-	fn.pqWriter = parquet.NewWriter(w, BuildParquetSchema(&fn.Schema))
+	fn.pqWriter = parquet.NewGenericWriter[any](w, BuildParquetSchema(&fn.Schema))
 	return nil
 }
 

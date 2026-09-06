@@ -7,7 +7,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 
 	"github.com/omnibeam/dataflow-compute-go/internal/domain"
@@ -15,10 +14,7 @@ import (
 	"github.com/omnibeam/dataflow-compute-go/pkg/jsonutils"
 )
 
-var (
-	_ ports.PagedAPIReader = (*RESTReader)(nil)
-	linkHeaderRegex        = regexp.MustCompile(`<([^>]+)>;\s*rel="([^"]+)"`)
-)
+var _ ports.PagedAPIReader = (*RESTReader)(nil)
 
 // RESTReader implements ports.PagedAPIReader for REST HTTP APIs.
 type RESTReader struct {

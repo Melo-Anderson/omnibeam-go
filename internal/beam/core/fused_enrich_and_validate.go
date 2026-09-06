@@ -32,8 +32,7 @@ type FusedEnrichAndValidateFn struct {
 	JobID          string                `json:"job_id,omitempty"`
 	ExecutionID    string                `json:"execution_id,omitempty"`
 
-	plan            []fieldCastingPlan `json:"-"`
-	cachedTimestamp string             `json:"-"`
+	plan []fieldCastingPlan `json:"-"`
 }
 
 // NewFusedEnrichAndValidateFn constructs a FusedEnrichAndValidateFn.

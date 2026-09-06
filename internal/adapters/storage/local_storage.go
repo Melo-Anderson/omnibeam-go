@@ -26,7 +26,7 @@ func NewLocalStorage() *LocalStorage {
 
 func (s *LocalStorage) Open(ctx context.Context, uri string) (io.ReadCloser, error) {
 	tracer := otel.Tracer("local-storage")
-	ctx, span := tracer.Start(ctx, "LocalStorage.Open")
+	_, span := tracer.Start(ctx, "LocalStorage.Open")
 	defer span.End()
 	span.SetAttributes(attribute.String("storage.uri", uri))
 
@@ -41,7 +41,7 @@ func (s *LocalStorage) Open(ctx context.Context, uri string) (io.ReadCloser, err
 
 func (s *LocalStorage) List(ctx context.Context, uriPattern string) ([]string, error) {
 	tracer := otel.Tracer("local-storage")
-	ctx, span := tracer.Start(ctx, "LocalStorage.List")
+	_, span := tracer.Start(ctx, "LocalStorage.List")
 	defer span.End()
 	span.SetAttributes(attribute.String("storage.pattern", uriPattern))
 
@@ -64,7 +64,7 @@ func (s *LocalStorage) List(ctx context.Context, uriPattern string) ([]string, e
 
 func (s *LocalStorage) CreateTemp(ctx context.Context, finalURI string) (string, io.WriteCloser, error) {
 	tracer := otel.Tracer("local-storage")
-	ctx, span := tracer.Start(ctx, "LocalStorage.CreateTemp")
+	_, span := tracer.Start(ctx, "LocalStorage.CreateTemp")
 	defer span.End()
 	span.SetAttributes(attribute.String("storage.final_uri", finalURI))
 
@@ -92,7 +92,7 @@ func (s *LocalStorage) CreateTemp(ctx context.Context, finalURI string) (string,
 
 func (s *LocalStorage) CommitTemp(ctx context.Context, tempURI, finalURI string) error {
 	tracer := otel.Tracer("local-storage")
-	ctx, span := tracer.Start(ctx, "LocalStorage.CommitTemp")
+	_, span := tracer.Start(ctx, "LocalStorage.CommitTemp")
 	defer span.End()
 	span.SetAttributes(
 		attribute.String("storage.temp_uri", tempURI),
@@ -117,7 +117,7 @@ func (s *LocalStorage) CommitTemp(ctx context.Context, tempURI, finalURI string)
 
 func (s *LocalStorage) AbortTemp(ctx context.Context, tempURI string) error {
 	tracer := otel.Tracer("local-storage")
-	ctx, span := tracer.Start(ctx, "LocalStorage.AbortTemp")
+	_, span := tracer.Start(ctx, "LocalStorage.AbortTemp")
 	defer span.End()
 	span.SetAttributes(attribute.String("storage.temp_uri", tempURI))
 
@@ -133,7 +133,7 @@ func (s *LocalStorage) AbortTemp(ctx context.Context, tempURI string) error {
 // Size returns the file size in bytes using os.Stat in O(1).
 func (s *LocalStorage) Size(ctx context.Context, uri string) (int64, error) {
 	tracer := otel.Tracer("local-storage")
-	ctx, span := tracer.Start(ctx, "LocalStorage.Size")
+	_, span := tracer.Start(ctx, "LocalStorage.Size")
 	defer span.End()
 	span.SetAttributes(attribute.String("storage.uri", uri))
 

@@ -16,9 +16,8 @@ func TestMongoSource_ContractAndValidation(t *testing.T) {
 	var client *mongo_driver.Client
 	src := mongo.NewMongoSource(client, "testdb")
 
-	var reader ports.PartitionedReader = src
-	if reader == nil {
-		t.Fatal("MongoSource must implement ports.PartitionedReader")
+	if src == nil {
+		t.Fatal("expected non-nil MongoSource")
 	}
 
 	// Verify Close() doesn't panic on nil client

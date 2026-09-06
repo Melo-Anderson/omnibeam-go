@@ -19,8 +19,8 @@ func TestSQLReaderFactory_OCP(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if _, ok := reader.(ports.SQLReader); !ok {
-			t.Errorf("expected reader to implement ports.SQLReader")
+		if _, ok := reader.(ports.PartitionedReader); !ok {
+			t.Errorf("expected reader to implement ports.PartitionedReader")
 		}
 	})
 
@@ -29,8 +29,8 @@ func TestSQLReaderFactory_OCP(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if _, ok := reader.(ports.SQLReader); !ok {
-			t.Errorf("expected reader to implement ports.SQLReader")
+		if _, ok := reader.(ports.PartitionedReader); !ok {
+			t.Errorf("expected reader to implement ports.PartitionedReader")
 		}
 	})
 

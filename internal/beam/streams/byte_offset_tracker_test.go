@@ -159,7 +159,7 @@ func TestByteOffsetTracker_ProgressAndErrors(t *testing.T) {
 		t.Error("expected IsDone() = true after MarkDone()")
 	}
 	p, r, err = t2.TrySplit(0.5)
-	if p != nil || r != nil {
+	if p != nil || r != nil || err != nil {
 		t.Error("expected nil split after tracker stopped")
 	}
 }
