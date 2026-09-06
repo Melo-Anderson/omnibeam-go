@@ -15,7 +15,8 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version: '1.26.x'
+          check-latest: true
           cache: true
 
       - name: Verify Module Hygiene & Formatting
@@ -45,7 +46,8 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version: '1.26.x'
+          check-latest: true
           cache: true
 
       - name: Run Unit, Property & Regression Checks
