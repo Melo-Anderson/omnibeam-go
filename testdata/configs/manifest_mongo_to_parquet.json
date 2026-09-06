@@ -1,0 +1,38 @@
+{
+  "pipeline_id": "e2e-mongo-01",
+  "run_id": "run-e2e-mongo",
+  "pipeline_type": "database",
+  "runner": "direct",
+  "database_source": {
+    "driver": "mongodb",
+    "connection_uri": "mongodb://127.0.0.1:27017/testdb",
+    "database": "testdb",
+    "table": "users_e2e",
+    "flatten_nested": true,
+    "partition_config": {
+      "num_partitions": 4,
+      "batch_size": 250
+    },
+    "schema": {
+      "id": "mongo_user_schema",
+      "fields": [
+        {"name": "user_id", "type": "int64", "nullable": false},
+        {"name": "name", "type": "string", "nullable": false},
+        {"name": "amount", "type": "float64", "nullable": false},
+        {"name": "address.city", "type": "string", "nullable": true},
+        {"name": "address.zip", "type": "string", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": false}
+      ]
+    }
+  },
+  "destination": {
+    "type": "local_storage",
+    "output_format": "parquet",
+    "output_path": "./testdata/out/mongo",
+    "compression": "snappy"
+  },
+  "dlq_config": {
+    "enabled": true,
+    "quarantine_path": "./testdata/out/dlq/mongo"
+  }
+}

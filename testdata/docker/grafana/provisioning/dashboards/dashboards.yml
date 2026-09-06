@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: "OmniBeam"
+    orgId: 1
+    folder: "OmniBeam"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 5
+    options:
+      path: /etc/grafana/dashboards

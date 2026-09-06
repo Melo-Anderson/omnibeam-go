@@ -1,0 +1,33 @@
+{
+  "pipeline_id": "e2e-gcs-03-dlq",
+  "run_id": "run-gcs-003",
+  "pipeline_type": "ingestion",
+  "runner": "direct",
+  "source": {
+    "type": "gcs",
+    "path": "gs://test-bucket/input/malformed_sample.csv",
+    "format": "csv",
+    "delimiter": ",",
+    "charset": "utf-8",
+    "compression": "none",
+    "schema": {
+      "fields": [
+        {"name": "id", "type": "int64", "nullable": false},
+        {"name": "customer_id", "type": "string", "nullable": false},
+        {"name": "amount", "type": "float64", "nullable": false},
+        {"name": "created_at", "type": "timestamp", "nullable": false},
+        {"name": "is_active", "type": "bool", "nullable": false}
+      ]
+    }
+  },
+  "destination": {
+    "type": "gcs",
+    "output_format": "parquet",
+    "output_path": "gs://test-bucket/output/e2e-gcs-03/valid.parquet",
+    "compression": "snappy"
+  },
+  "dlq_config": {
+    "enabled": true,
+    "quarantine_path": "gs://test-bucket/output/e2e-gcs-03/dlq.jsonl"
+  }
+}

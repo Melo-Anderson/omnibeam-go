@@ -1,0 +1,6 @@
+{
+  "fields": [
+    {"name": "order_id", "type": "int64", "nullable": false},
+    {"name": "customer", "type": "string", "nullable": false}
+  ]
+}

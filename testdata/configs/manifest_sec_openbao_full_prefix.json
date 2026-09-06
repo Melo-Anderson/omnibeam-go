@@ -1,0 +1,42 @@
+{
+  "pipeline_id": "e2e-sec-02-openbao-prefix",
+  "run_id": "run-sec-002",
+  "pipeline_type": "sql",
+  "secrets_config": {
+    "provider": "openbao",
+    "vault_url": "http://127.0.0.1:8200",
+    "vault_token": "testtoken",
+    "host_override": {
+      "postgres": "localhost"
+    }
+  },
+  "database_source": {
+    "driver": "postgres",
+    "connection_uri": "postgres://testuser:{{password}}@postgres:5432/testdb?sslmode=disable",
+    "password_ref": "vault:secret/data/postgres#password",
+    "query": "SELECT id, customer_id, amount, status, created_at FROM orders_int WHERE id > 0",
+    "partition_config": {
+      "partition_column": "id",
+      "batch_size": 2500
+    },
+    "schema": {
+      "fields": [
+        {"name": "id", "type": "int64", "nullable": false},
+        {"name": "customer_id", "type": "string", "nullable": false},
+        {"name": "amount", "type": "float64", "nullable": false},
+        {"name": "status", "type": "string", "nullable": false},
+        {"name": "created_at", "type": "timestamp", "nullable": false}
+      ]
+    }
+  },
+  "destination": {
+    "type": "local_storage",
+    "output_format": "parquet",
+    "output_path": "testdata/output/e2e_sec_02/orders_int.parquet",
+    "compression": "snappy"
+  },
+  "dlq_config": {
+    "enabled": true,
+    "quarantine_path": "testdata/output/e2e_sec_02/dlq.jsonl"
+  }
+}
