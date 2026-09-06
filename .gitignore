@@ -1,0 +1,54 @@
+# Binaries & Compiled Outputs
+/bin/
+/dist/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+beam_core
+functional.test
+
+# Test, Profiling & Coverage Dumps
+coverage
+coverage.out
+*.prof
+*.log
+project_codebase.txt
+
+# Staging & Ephemeral Test Outputs
+testdata/output/
+testdata/fixtures/*.csv
+testdata/fixtures/*.csv.gz
+testdata/fixtures/*.jsonl
+.gotmp/
+generated/
+
+# Local Environment & Secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE, Editor & OS Metas
+.idea/
+.sdd/
+.github/prompts/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+
+# Agent & Local Assist Workspaces (Keep .github/ tracked)
+.claude/
+.codex/
+.cursor/
+.gemini/
+.superpowers/
+docs/superpowers/

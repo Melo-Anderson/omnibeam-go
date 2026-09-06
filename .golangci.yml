@@ -1,0 +1,34 @@
+run:
+  timeout: 5m
+  go: "1.24"
+
+linters:
+  enable:
+    - depguard
+    - gocyclo
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  depguard:
+    rules:
+      clean_architecture_domain:
+        files:
+          - "**/internal/domain/**"
+        deny:
+          - pkg: "**/internal/ports/**"
+            desc: "Domain layer must not import ports layer"
+          - pkg: "**/internal/adapters/**"
+            desc: "Domain layer must not import adapters layer"
+          - pkg: "**/internal/beam/**"
+            desc: "Domain layer must not import beam layer"
+      clean_architecture_beam:
+        files:
+          - "**/internal/beam/**"
+        deny:
+          - pkg: "**/internal/adapters/**"
+            desc: "Beam application layer must not import adapters (use ports interfaces)"
