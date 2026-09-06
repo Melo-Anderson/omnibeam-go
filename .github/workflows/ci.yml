@@ -21,8 +21,8 @@ jobs:
       - name: Verify Module Hygiene & Formatting
         run: |
           go mod tidy
-          git diff --exit-code go.mod go.sum
-          test -z "$(gofmt -l .)" || (echo "Unformatted files found:" && gofmt -l . && exit 1)
+          gofmt -w .
+          git diff --exit-code
 
       - name: Run go vet
         run: go vet ./...
