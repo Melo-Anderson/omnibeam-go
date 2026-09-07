@@ -1,0 +1,33 @@
+{
+  "pipeline_id": "e2e-sql-02-pg-uuid",
+  "run_id": "run-sql-002",
+  "pipeline_type": "sql",
+  "runner": "direct",
+  "database_source": {
+    "driver": "postgres",
+    "connection_uri": "postgres://testuser:testpassword@localhost:5432/testdb?sslmode=disable",
+    "table": "users_uuid",
+    "partition_config": {
+      "partition_column": "user_uuid",
+      "batch_size": 2500
+    },
+    "schema": {
+      "fields": [
+        {"name": "user_uuid", "type": "string", "nullable": false},
+        {"name": "email", "type": "string", "nullable": false},
+        {"name": "score", "type": "float64", "nullable": false},
+        {"name": "created_at", "type": "timestamp", "nullable": false}
+      ]
+    }
+  },
+  "destination": {
+    "type": "local_storage",
+    "output_format": "parquet",
+    "output_path": "testdata/output/e2e-sql-02/users.parquet",
+    "compression": "snappy"
+  },
+  "dlq_config": {
+    "enabled": true,
+    "quarantine_path": "testdata/output/e2e-sql-02/dlq.jsonl"
+  }
+}

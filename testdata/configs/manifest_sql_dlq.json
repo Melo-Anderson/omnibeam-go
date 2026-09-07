@@ -1,0 +1,32 @@
+{
+  "pipeline_id": "e2e-sql-04-dlq",
+  "run_id": "run-sql-004",
+  "pipeline_type": "sql",
+  "runner": "direct",
+  "database_source": {
+    "driver": "postgres",
+    "connection_uri": "postgres://testuser:testpassword@localhost:5432/testdb?sslmode=disable",
+    "table": "corrupt_payments",
+    "partition_config": {
+      "partition_column": "id",
+      "batch_size": 500
+    },
+    "schema": {
+      "fields": [
+        {"name": "id", "type": "int64", "nullable": false},
+        {"name": "account_id", "type": "string", "nullable": false},
+        {"name": "amount", "type": "float64", "nullable": false}
+      ]
+    }
+  },
+  "destination": {
+    "type": "local_storage",
+    "output_format": "parquet",
+    "output_path": "testdata/output/e2e-sql-04/payments.parquet",
+    "compression": "snappy"
+  },
+  "dlq_config": {
+    "enabled": true,
+    "quarantine_path": "testdata/output/e2e-sql-04/dlq.jsonl"
+  }
+}

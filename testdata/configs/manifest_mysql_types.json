@@ -1,0 +1,35 @@
+{
+  "pipeline_id": "e2e-sql-03-mysql-types",
+  "run_id": "run-sql-003",
+  "pipeline_type": "sql",
+  "runner": "direct",
+  "database_source": {
+    "driver": "mysql",
+    "connection_uri": "testuser:testpassword@tcp(127.0.0.1:3306)/testdb?parseTime=true",
+    "table": "products_mixed",
+    "partition_config": {
+      "partition_column": "id",
+      "batch_size": 2500
+    },
+    "schema": {
+      "fields": [
+        {"name": "id", "type": "int64", "nullable": false},
+        {"name": "name", "type": "string", "nullable": false},
+        {"name": "price", "type": "float64", "nullable": false},
+        {"name": "in_stock", "type": "bool", "nullable": false},
+        {"name": "description", "type": "string", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": false}
+      ]
+    }
+  },
+  "destination": {
+    "type": "local_storage",
+    "output_format": "parquet",
+    "output_path": "testdata/output/e2e-sql-03/products.parquet",
+    "compression": "snappy"
+  },
+  "dlq_config": {
+    "enabled": true,
+    "quarantine_path": "testdata/output/e2e-sql-03/dlq.jsonl"
+  }
+}

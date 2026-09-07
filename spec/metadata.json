@@ -1,0 +1,13 @@
+{
+  "name": "Omnibeam Dataflow Compute Engine",
+  "description": "High-performance distributed data ingestion and transformation pipeline.",
+  "parameters": [
+    {
+      "name": "config_payload",
+      "label": "Pipeline Configuration Payload (JSON)",
+      "helpText": "Inline JSON string containing the complete pipeline configuration manifest.",
+      "isOptional": false,
+      "regexes": [".+"]
+    }
+  ]
+}

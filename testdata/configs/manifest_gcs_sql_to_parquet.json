@@ -1,0 +1,34 @@
+{
+  "pipeline_id": "e2e-gcs-02-sql-parquet",
+  "run_id": "run-gcs-002",
+  "pipeline_type": "sql",
+  "runner": "direct",
+  "database_source": {
+    "driver": "postgres",
+    "connection_uri": "postgres://testuser:testpassword@localhost:5432/testdb?sslmode=disable",
+    "query": "SELECT id, customer_id, amount, status, created_at FROM orders_int WHERE id > 0",
+    "partition_config": {
+      "partition_column": "id",
+      "batch_size": 2500
+    },
+    "schema": {
+      "fields": [
+        {"name": "id", "type": "int64", "nullable": false},
+        {"name": "customer_id", "type": "string", "nullable": false},
+        {"name": "amount", "type": "float64", "nullable": false},
+        {"name": "status", "type": "string", "nullable": false},
+        {"name": "created_at", "type": "timestamp", "nullable": false}
+      ]
+    }
+  },
+  "destination": {
+    "type": "gcs",
+    "output_format": "parquet",
+    "output_path": "gs://test-bucket/output/e2e-gcs-02/orders_sql.parquet",
+    "compression": "snappy"
+  },
+  "dlq_config": {
+    "enabled": true,
+    "quarantine_path": "gs://test-bucket/output/e2e-gcs-02/dlq.jsonl"
+  }
+}
