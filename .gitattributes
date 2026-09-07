@@ -1,0 +1,10 @@
+# Enforce LF line endings for all text and Go files across platforms
+* text=auto eol=lf
+*.go text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.sql text eol=lf
+Dockerfile text eol=lf
+Makefile text eol=lf
