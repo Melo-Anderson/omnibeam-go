@@ -1,0 +1,38 @@
+{
+  "pipeline_id": "e2e-01-happy-path",
+  "run_id": "run-001",
+  "pipeline_type": "ingestion",
+  "runner": "direct",
+  "source": {
+    "type": "file",
+    "path": "testdata/fixtures/clean_sample.csv",
+    "format": "csv",
+    "delimiter": ",",
+    "charset": "utf-8",
+    "compression": "none",
+    "schema": {
+      "fields": [
+        {"name": "id", "type": "int64", "nullable": false},
+        {"name": "customer_id", "type": "string", "nullable": false},
+        {"name": "amount", "type": "float64", "nullable": false},
+        {"name": "created_at", "type": "timestamp", "nullable": false},
+        {"name": "is_active", "type": "bool", "nullable": false}
+      ]
+    }
+  },
+  "quality_config": {
+    "rules": [
+      {"type": "not_null", "column": "customer_id"},
+      {"type": "accepted_values", "column": "is_active", "values": ["true", "false"]}
+    ]
+  },
+  "destination": {
+    "type": "local_storage",
+    "output_format": "parquet",
+    "output_path": "testdata/output/e2e_01/data-000.parquet",
+    "compression": "snappy"
+  },
+  "dlq_config": {
+    "enabled": false
+  }
+}

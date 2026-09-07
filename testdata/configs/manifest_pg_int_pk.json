@@ -1,0 +1,34 @@
+{
+  "pipeline_id": "e2e-sql-01-pg-int",
+  "run_id": "run-sql-001",
+  "pipeline_type": "sql",
+  "runner": "direct",
+  "database_source": {
+    "driver": "postgres",
+    "connection_uri": "postgres://testuser:testpassword@localhost:5432/testdb?sslmode=disable",
+    "query": "SELECT id, customer_id, amount, status, created_at FROM orders_int WHERE id > 0",
+    "partition_config": {
+      "partition_column": "id",
+      "batch_size": 2500
+    },
+    "schema": {
+      "fields": [
+        {"name": "id", "type": "int64", "nullable": false},
+        {"name": "customer_id", "type": "string", "nullable": false},
+        {"name": "amount", "type": "float64", "nullable": false},
+        {"name": "status", "type": "string", "nullable": false},
+        {"name": "created_at", "type": "timestamp", "nullable": false}
+      ]
+    }
+  },
+  "destination": {
+    "type": "local_storage",
+    "output_format": "parquet",
+    "output_path": "testdata/output/e2e-sql-01/orders.parquet",
+    "compression": "snappy"
+  },
+  "dlq_config": {
+    "enabled": true,
+    "quarantine_path": "testdata/output/e2e-sql-01/dlq.jsonl"
+  }
+}

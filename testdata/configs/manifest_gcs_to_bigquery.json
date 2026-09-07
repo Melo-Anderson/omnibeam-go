@@ -1,0 +1,35 @@
+{
+  "pipeline_id": "test-gcs-to-bigquery",
+  "run_id": "run-001",
+  "pipeline_type": "stream_to_bigquery",
+  "source": {
+    "type": "storage",
+    "path": "gs://test-bucket/orders.csv",
+    "format": "csv",
+    "delimiter": ",",
+    "schema": {
+      "fields": [
+        {"name": "order_id", "type": "int64", "nullable": false},
+        {"name": "customer", "type": "string", "nullable": false},
+        {"name": "amount", "type": "decimal", "scale": 2, "nullable": true}
+      ]
+    }
+  },
+  "destination": {
+    "type": "bigquery",
+    "bigquery_options": {
+      "project_id": "test-project",
+      "dataset_id": "analytics",
+      "table_id": "orders",
+      "write_disposition": "WRITE_APPEND",
+      "batch_size": 500
+    }
+  },
+  "security": {
+    "sensitive_fields": ["customer_ssn", "credit_card"]
+  },
+  "dlq_config": {
+    "enabled": true,
+    "quarantine_path": "gs://test-bucket/dlq/"
+  }
+}

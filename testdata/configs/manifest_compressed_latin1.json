@@ -1,0 +1,31 @@
+{
+  "pipeline_id": "e2e-02-latin1",
+  "run_id": "run-002",
+  "pipeline_type": "ingestion",
+  "runner": "direct",
+  "source": {
+    "type": "file",
+    "path": "testdata/fixtures/latin1_semicolon.csv.gz",
+    "format": "csv",
+    "delimiter": ";",
+    "charset": "iso-8859-1",
+    "compression": "gzip",
+    "schema": {
+      "fields": [
+        {"name": "id", "type": "int64", "nullable": false},
+        {"name": "cidade", "type": "string", "nullable": false},
+        {"name": "valor", "type": "float64", "nullable": false},
+        {"name": "data_cadastro", "type": "timestamp", "nullable": false}
+      ]
+    }
+  },
+  "destination": {
+    "type": "local_storage",
+    "output_format": "parquet",
+    "output_path": "testdata/output/e2e_02/data-000.parquet",
+    "compression": "snappy"
+  },
+  "dlq_config": {
+    "enabled": false
+  }
+}
