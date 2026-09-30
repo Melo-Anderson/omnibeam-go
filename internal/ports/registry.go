@@ -22,7 +22,7 @@ type PagedAPISourceFactory func(ctx context.Context, cfg *domain.PipelineConfig,
 type BatchAPIWriterFactory func(ctx context.Context, cfg *domain.PipelineConfig, sec SecretResolver) (BatchAPIWriter, error)
 
 // SinkFactory constructs a BeamSinkBuilder from a pipeline config.
-type SinkFactory func(ctx context.Context, cfg *domain.PipelineConfig, sec SecretResolver, st StorageBackend) (BeamSinkBuilder, error)
+type SinkFactory func(ctx context.Context, cfg *domain.PipelineConfig, deps SinkDeps) (BeamSinkBuilder, error)
 
 var (
 	sourceMu       sync.RWMutex
@@ -111,13 +111,13 @@ func BuildBatchAPIWriter(ctx context.Context, targetType string, cfg *domain.Pip
 	return factory(ctx, cfg, sec)
 }
 
-// BuildSink resolves and invokes the sink factory.
-func BuildSink(ctx context.Context, targetType string, cfg *domain.PipelineConfig, sec SecretResolver, st StorageBackend) (BeamSinkBuilder, error) {
+// BuildSink resolves and invokes the sink factory registered for targetType.
+func BuildSink(ctx context.Context, targetType string, cfg *domain.PipelineConfig, deps SinkDeps) (BeamSinkBuilder, error) {
 	sinkMu.RLock()
 	factory, ok := sinkRegistry[targetType]
 	sinkMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("%w: sink target %q", ErrUnregisteredConnector, targetType)
 	}
-	return factory(ctx, cfg, sec, st)
+	return factory(ctx, cfg, deps)
 }

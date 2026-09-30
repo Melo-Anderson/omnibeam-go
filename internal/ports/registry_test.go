@@ -12,17 +12,17 @@ import (
 func TestSinkRegistry_RegisterAndBuild(t *testing.T) {
 	t.Run("registered sink is resolved by BuildSink", func(t *testing.T) {
 		testType := "test-sink-" + t.Name()
-		ports.RegisterSink(testType, func(_ context.Context, _ *domain.PipelineConfig, _ ports.SecretResolver, _ ports.StorageBackend) (ports.BeamSinkBuilder, error) {
+		ports.RegisterSink(testType, func(_ context.Context, _ *domain.PipelineConfig, _ ports.SinkDeps) (ports.BeamSinkBuilder, error) {
 			return nil, nil
 		})
-		_, err := ports.BuildSink(context.Background(), testType, &domain.PipelineConfig{}, nil, nil)
+		_, err := ports.BuildSink(context.Background(), testType, &domain.PipelineConfig{}, ports.SinkDeps{})
 		if err != nil {
 			t.Errorf("BuildSink returned unexpected error: %v", err)
 		}
 	})
 
 	t.Run("unregistered sink returns ErrUnregisteredConnector", func(t *testing.T) {
-		_, err := ports.BuildSink(context.Background(), "no-such-sink-xyz", &domain.PipelineConfig{}, nil, nil)
+		_, err := ports.BuildSink(context.Background(), "no-such-sink-xyz", &domain.PipelineConfig{}, ports.SinkDeps{})
 		if err == nil {
 			t.Fatal("expected error for unregistered sink, got nil")
 		}
