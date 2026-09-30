@@ -100,6 +100,9 @@ func (fn *ByteStreamSourceSDF) SplitRestriction(_ string, rest ByteOffsetRange) 
 	}
 
 	chunkSize := fn.SourceCfg.ChunkSizeBytes
+	if chunkSize <= 0 {
+		chunkSize = domain.DefaultChunkSizeBytes
+	}
 	if rest.End-rest.Start <= chunkSize {
 		return []ByteOffsetRange{rest}
 	}
