@@ -37,9 +37,11 @@ var _ interface {
 // ParquetSinkDoFn coordinates atomic bundle-level Parquet shard writing using BundleFileStager.
 // Rows are encoded directly into physical parquet.Row slices and streamed without intermediate map allocations.
 type ParquetSinkDoFn struct {
-	OutputDir   string        `json:"output_dir"`
-	Compression string        `json:"compression"`
-	Schema      domain.Schema `json:"schema"`
+	OutputDir         string        `json:"output_dir"`
+	Compression       string        `json:"compression"`
+	Encryption        string        `json:"encryption"`
+	IncludeSourceFile bool          `json:"include_source_file"`
+	Schema            domain.Schema `json:"schema"`
 
 	stager        *core.BundleFileStager
 	pqWriter      *parquet.GenericWriter[any]
@@ -53,22 +55,25 @@ func NewParquetSinkDoFn(
 	storage ports.StorageWriter,
 	outputDir string,
 	compression string,
+	encryption string,
 	schema domain.Schema,
 ) *ParquetSinkDoFn {
 	return &ParquetSinkDoFn{
-		OutputDir:   strings.TrimRight(outputDir, "/"),
-		Compression: compression,
-		Schema:      schema,
-		stager:      core.NewBundleFileStager(storage, outputDir, "parquet", compression, false),
+		OutputDir:         strings.TrimRight(outputDir, "/"),
+		Compression:       compression,
+		Encryption:        encryption,
+		IncludeSourceFile: true,
+		Schema:            schema,
+		stager:            core.NewBundleFileStager(storage, outputDir, "parquet", compression, encryption, false),
 	}
 }
 
 // Setup re-establishes storage and compiles direct row extractor closures on remote worker nodes.
 func (fn *ParquetSinkDoFn) Setup(ctx context.Context) error {
 	if fn.stager == nil {
-		fn.stager = core.NewBundleFileStager(nil, fn.OutputDir, "parquet", fn.Compression, false)
+		fn.stager = core.NewBundleFileStager(nil, fn.OutputDir, "parquet", fn.Compression, fn.Encryption, false)
 	}
-	fn.directEncoder, fn.numCols = CompileParquetDirectRowEncoder(&fn.Schema)
+	fn.directEncoder, fn.numCols = CompileParquetDirectRowEncoder(&fn.Schema, fn.IncludeSourceFile)
 	fn.rowBuffer = make([]parquet.Value, fn.numCols)
 	return fn.stager.Setup(ctx)
 }
@@ -76,7 +81,7 @@ func (fn *ParquetSinkDoFn) Setup(ctx context.Context) error {
 // StartBundle prepares the sink state for the active worker bundle.
 func (fn *ParquetSinkDoFn) StartBundle(ctx context.Context) error {
 	if fn.stager == nil {
-		fn.stager = core.NewBundleFileStager(nil, fn.OutputDir, "parquet", fn.Compression, false)
+		fn.stager = core.NewBundleFileStager(nil, fn.OutputDir, "parquet", fn.Compression, fn.Encryption, false)
 	}
 	fn.stager.StartBundle(ctx)
 	fn.pqWriter = nil
@@ -97,7 +102,7 @@ func (fn *ParquetSinkDoFn) lazyOpen(ctx context.Context) error {
 		return err
 	}
 
-	fn.pqWriter = parquet.NewGenericWriter[any](w, BuildParquetSchema(&fn.Schema))
+	fn.pqWriter = parquet.NewGenericWriter[any](w, BuildParquetSchema(&fn.Schema, fn.IncludeSourceFile))
 	return nil
 }
 
@@ -108,7 +113,7 @@ func (fn *ParquetSinkDoFn) ProcessElement(ctx context.Context, rec *domain.Gener
 	}
 
 	if fn.directEncoder == nil {
-		fn.directEncoder, fn.numCols = CompileParquetDirectRowEncoder(&fn.Schema)
+		fn.directEncoder, fn.numCols = CompileParquetDirectRowEncoder(&fn.Schema, fn.IncludeSourceFile)
 		fn.rowBuffer = make([]parquet.Value, fn.numCols)
 	}
 

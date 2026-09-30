@@ -86,7 +86,7 @@ func TestParquetSinkDoFn_HappyPath(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			fake := &fakeStorageWriter{}
-			fn := NewParquetSinkDoFn(fake, "gs://test-bucket/output", "snappy", schema)
+			fn := NewParquetSinkDoFn(fake, "gs://test-bucket/output", "snappy", "none", schema)
 
 			ctx := context.Background()
 			if err := fn.StartBundle(ctx); err != nil {
@@ -121,7 +121,7 @@ func TestParquetSinkDoFn_HappyPath(t *testing.T) {
 func TestParquetSinkDoFn_CreateTempError(t *testing.T) {
 	schema := domain.Schema{Fields: []domain.Field{{Name: "id", Type: domain.TypeInt64}}}
 	fake := &fakeStorageWriter{createErr: fmt.Errorf("storage permission denied")}
-	fn := NewParquetSinkDoFn(fake, "gs://test-bucket/output", "none", schema)
+	fn := NewParquetSinkDoFn(fake, "gs://test-bucket/output", "none", "none", schema)
 
 	ctx := context.Background()
 	if err := fn.StartBundle(ctx); err != nil {
@@ -143,7 +143,7 @@ func TestParquetSinkDoFn_BatchFlush(t *testing.T) {
 		},
 	}
 	fake := &fakeStorageWriter{}
-	fn := NewParquetSinkDoFn(fake, "gs://test-bucket/output", "snappy", schema)
+	fn := NewParquetSinkDoFn(fake, "gs://test-bucket/output", "snappy", "none", schema)
 
 	ctx := context.Background()
 	_ = fn.StartBundle(ctx)
