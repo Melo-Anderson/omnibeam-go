@@ -55,12 +55,15 @@ Esta seção reúne todas as capacidades funcionais, técnicas e de engenharia 1
   - **Zero Data Loss no Flush Final**: Registros com falha de serialização são roteados para a DLQ inclusive no flush de encerramento do bundle (`FinishBundle`).
 * **Formato Colunar Apache Parquet**:
   - Gravação otimizada de dados colunares com compressão (**Snappy** e **Zstd**) diretamente em buckets GCS ou disco local, prontos para consultas analíticas imediatas.
-* **Arquivos Delimitados e JSONL**:
+* **Arquivos Delimitados e JSONL (`StreamFileSinkDoFn`)**:
   - Exportação de arquivos formatados com delimitadores configuráveis, quebras de linha personalizadas, compactação e checksum SHA-256 para auditoria.
-* **Envio em Lote para APIs Externas**:
-  - Disparo de registros validados em micro-lotes para sistemas externos e SaaS.
-* **Operações Atômicas de Escrita (Zero Arquivos Órfãos)**:
-  - Escrita temporária (*Stage Temp File*) com commit atômico no encerramento do bundle (`BundleFileStager`). Em caso de erro, arquivos parciais são descartados automaticamente via `AbortTemp`.
+  - Suporte a envelope de criptografia (PGP/KMS) via cadeia de `DecoratedStreamWriter`.
+* **Envio em Lote para APIs Externas (`BatchAPIBeamSink`)**:
+  - Disparo de registros validados em micro-lotes para sistemas externos e SaaS via `BundleBatchBuffer[T]`.
+* **Campos de Auditoria Inteligentes**:
+  - `_ingested_at` é injetado em **todos** os sinks Parquet, independente da fonte.
+  - `_source_file` é injetado apenas quando a fonte é arquivo/storage (`ByteStreamSourceSDF`); omitido automaticamente para fontes de banco de dados (`database_source`) e APIs (`api_source`).
+  - Operações atômicas de escrita com commit atômico no encerramento do bundle (`BundleFileStager`). Em caso de erro, arquivos parciais são descartados automaticamente via `AbortTemp`.
   - Campos de interface internos estritamente encapsulados (*unexported*), prevenindo falhas de serialização nula em workers remotos.
 
 ### ⚡ 2.3. Performance, Eficiência & Apache Beam Go SDK
