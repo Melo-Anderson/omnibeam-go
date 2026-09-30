@@ -27,10 +27,6 @@ func init() {
 var (
 	streamRecordsWrittenCounter = metrics.NewCounter("omnibeam", "records_written")
 	streamBundleWriteDist       = metrics.NewDistribution("omnibeam", "bundle_write_duration_ms")
-
-	// Backward-compatible metrics handles
-	delimitedRecordsWrittenCounter = streamRecordsWrittenCounter
-	delimitedBundleWriteDist       = streamBundleWriteDist
 )
 
 // StreamFileSinkDoFn writes GenericRecords to stream-formatted files (CSV, JSONL, TXT, TSV)
