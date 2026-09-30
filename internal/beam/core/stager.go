@@ -15,6 +15,7 @@ type BundleFileStager struct {
 	OutputDir   string `json:"output_dir"`
 	Format      string `json:"format"`
 	Compression string `json:"compression"`
+	Encryption  string `json:"encryption"`
 	SingleFile  bool   `json:"single_file"`
 
 	// Unexported state — recomposed in Setup() on remote workers
@@ -36,6 +37,7 @@ func NewBundleFileStager(
 	outputDir string,
 	format string,
 	compression string,
+	encryption string,
 	singleFile bool,
 ) *BundleFileStager {
 	return &BundleFileStager{
@@ -43,6 +45,7 @@ func NewBundleFileStager(
 		OutputDir:   strings.TrimRight(outputDir, "/"),
 		Format:      strings.ToLower(format),
 		Compression: strings.ToLower(compression),
+		Encryption:  strings.ToLower(encryption),
 		SingleFile:  singleFile,
 	}
 }
@@ -76,7 +79,7 @@ func (s *BundleFileStager) EnsureOpen(ctx context.Context) (string, io.WriteClos
 		return "", nil, fmt.Errorf("storage writer is not initialized")
 	}
 
-	s.finalURI = domain.BuildOutputURI(s.OutputDir, s.Format, s.Compression, s.SingleFile)
+	s.finalURI = domain.BuildOutputURI(s.OutputDir, s.Format, s.Compression, s.Encryption, s.SingleFile)
 	tempURI, w, err := s.storage.CreateTemp(ctx, s.finalURI)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed creating temp staging file: %w", err)

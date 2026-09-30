@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 	"github.com/omnibeam/dataflow-compute-go/internal/ports"
 )
@@ -159,4 +161,54 @@ func TestSliceCoders(t *testing.T) {
 
 func TestInit_NoDuplicateCoderPanic(t *testing.T) {
 	t.Log("partitions and paged_api init() ran alongside core init() without coder conflict")
+}
+
+// TestBuildPipeline_CompositeScopes validates DAG integrity with named composite scopes.
+func TestBuildPipeline_CompositeScopes(t *testing.T) {
+	p, _ := beam.NewPipelineWithRoot()
+	storage := &fakeStorage{}
+	schema := domain.Schema{
+		Fields: []domain.Field{
+			{Name: "id", Type: domain.TypeInt64, Nullable: false},
+		},
+	}
+	records := []*domain.GenericRecord{
+		nil, // filtered out by FilterNils
+		func() *domain.GenericRecord {
+			r := domain.NewGenericRecord("schema-1", 1)
+			r.SetString(0, "42")
+			return r
+		}(),
+	}
+	source := &mockSourceBuilder{records: records}
+	sink := &mockSinkBuilder{}
+	dlqSink := &DefaultDLQBeamSink{Storage: storage, DLQPath: "gs://test/dlq"}
+	auditSink := &DefaultAuditBeamSink{Storage: storage, AuditDir: "gs://test/audit"}
+
+	metricsCol := BuildPipeline(p, source, sink, dlqSink, auditSink, schema, domain.QualityConfig{})
+
+	if !metricsCol.IsValid() {
+		t.Fatal("expected valid metrics PCollection from named composite pipeline")
+	}
+}
+
+// TestApplyIngestionStage_FiltersNils validates via pipeline runner that nils are dropped in FilterNils.
+func TestApplyIngestionStage_FiltersNils(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+
+	nilRec := (*domain.GenericRecord)(nil)
+	validRec := domain.NewGenericRecord("schema-1", 1)
+	validRec.SetString(0, "10")
+
+	schema := domain.Schema{Fields: []domain.Field{{Name: "id", Type: domain.TypeInt64}}}
+
+	raw := beam.CreateList(s, []*domain.GenericRecord{nilRec, validRec})
+	valid, dlq, _ := applyIngestionStage(s.Scope("TestIngestion"), raw, schema, domain.QualityConfig{}, domain.SecurityConfig{})
+
+	passert.Count(s, valid, "valid count", 1)
+	passert.Count(s, dlq, "dlq count", 0)
+
+	if err := ptest.Run(p); err != nil {
+		t.Fatalf("ptest failed: %v", err)
+	}
 }

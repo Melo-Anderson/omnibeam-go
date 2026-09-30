@@ -27,14 +27,14 @@ type AuditSinkDoFn struct {
 func NewAuditSinkDoFn(storage ports.StorageWriter, auditDir string) *AuditSinkDoFn {
 	return &AuditSinkDoFn{
 		AuditDir: strings.TrimRight(auditDir, "/"),
-		stager:   NewBundleFileStager(storage, auditDir, "jsonl", "none", false),
+		stager:   NewBundleFileStager(storage, auditDir, "jsonl", "none", "none", false),
 	}
 }
 
 // Setup re-injects storage from globalStorageFactory when crossing the worker boundary.
 func (fn *AuditSinkDoFn) Setup(ctx context.Context) error {
 	if fn.stager == nil {
-		fn.stager = NewBundleFileStager(nil, fn.AuditDir, "jsonl", "none", false)
+		fn.stager = NewBundleFileStager(nil, fn.AuditDir, "jsonl", "none", "none", false)
 	}
 	return fn.stager.Setup(ctx)
 }
@@ -42,7 +42,7 @@ func (fn *AuditSinkDoFn) Setup(ctx context.Context) error {
 // StartBundle resets bundle-level state for the active bundle.
 func (fn *AuditSinkDoFn) StartBundle(ctx context.Context) error {
 	if fn.stager == nil {
-		fn.stager = NewBundleFileStager(nil, fn.AuditDir, "jsonl", "none", false)
+		fn.stager = NewBundleFileStager(nil, fn.AuditDir, "jsonl", "none", "none", false)
 	}
 	fn.stager.StartBundle(ctx)
 	return nil
@@ -51,7 +51,7 @@ func (fn *AuditSinkDoFn) StartBundle(ctx context.Context) error {
 // ProcessElement lazily opens the audit staging file on the first record and appends a JSONL line.
 func (fn *AuditSinkDoFn) ProcessElement(ctx context.Context, rec *domain.AuditRecord) error {
 	if fn.stager == nil {
-		fn.stager = NewBundleFileStager(nil, fn.AuditDir, "jsonl", "none", false)
+		fn.stager = NewBundleFileStager(nil, fn.AuditDir, "jsonl", "none", "none", false)
 	}
 	_, w, err := fn.stager.EnsureOpen(ctx)
 	if err != nil {

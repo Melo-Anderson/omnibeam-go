@@ -29,14 +29,14 @@ type DLQSinkDoFn struct {
 func NewDLQSinkDoFn(storage ports.StorageWriter, dlqDir string) *DLQSinkDoFn {
 	return &DLQSinkDoFn{
 		DLQDir: strings.TrimRight(dlqDir, "/"),
-		stager: NewBundleFileStager(storage, dlqDir, "jsonl", "none", false),
+		stager: NewBundleFileStager(storage, dlqDir, "jsonl", "none", "none", false),
 	}
 }
 
 // Setup re-establishes storage factory on remote worker nodes.
 func (fn *DLQSinkDoFn) Setup(ctx context.Context) error {
 	if fn.stager == nil {
-		fn.stager = NewBundleFileStager(nil, fn.DLQDir, "jsonl", "none", false)
+		fn.stager = NewBundleFileStager(nil, fn.DLQDir, "jsonl", "none", "none", false)
 	}
 	return fn.stager.Setup(ctx)
 }
@@ -44,7 +44,7 @@ func (fn *DLQSinkDoFn) Setup(ctx context.Context) error {
 // StartBundle resets bundle-level state for the active bundle.
 func (fn *DLQSinkDoFn) StartBundle(ctx context.Context) error {
 	if fn.stager == nil {
-		fn.stager = NewBundleFileStager(nil, fn.DLQDir, "jsonl", "none", false)
+		fn.stager = NewBundleFileStager(nil, fn.DLQDir, "jsonl", "none", "none", false)
 	}
 	fn.stager.StartBundle(ctx)
 	return nil
@@ -53,7 +53,7 @@ func (fn *DLQSinkDoFn) StartBundle(ctx context.Context) error {
 // ProcessElement lazily opens the DLQ staging file on first error record and appends JSONL.
 func (fn *DLQSinkDoFn) ProcessElement(ctx context.Context, dlq *domain.DeadLetterRecord) error {
 	if fn.stager == nil {
-		fn.stager = NewBundleFileStager(nil, fn.DLQDir, "jsonl", "none", false)
+		fn.stager = NewBundleFileStager(nil, fn.DLQDir, "jsonl", "none", "none", false)
 	}
 	_, w, err := fn.stager.EnsureOpen(ctx)
 	if err != nil {

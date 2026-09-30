@@ -56,7 +56,7 @@ func TestBundleFileStager_Lifecycle(t *testing.T) {
 
 	t.Run("Happy path with written records", func(t *testing.T) {
 		storage := newFakeStorageWriter()
-		stager := core.NewBundleFileStager(storage, "/tmp/out", "jsonl", "none", false)
+		stager := core.NewBundleFileStager(storage, "/tmp/out", "jsonl", "none", "none", false)
 
 		stager.StartBundle(ctx)
 		tempURI, w, err := stager.EnsureOpen(ctx)
@@ -76,7 +76,7 @@ func TestBundleFileStager_Lifecycle(t *testing.T) {
 
 	t.Run("Idle bundle with 0 records aborts staging file", func(t *testing.T) {
 		storage := newFakeStorageWriter()
-		stager := core.NewBundleFileStager(storage, "/tmp/out", "jsonl", "none", false)
+		stager := core.NewBundleFileStager(storage, "/tmp/out", "jsonl", "none", "none", false)
 
 		stager.StartBundle(ctx)
 		tempURI, _, err := stager.EnsureOpen(ctx)
@@ -96,7 +96,7 @@ func TestBundleFileStager_Lifecycle(t *testing.T) {
 
 	t.Run("Unopened bundle commits nothing", func(t *testing.T) {
 		storage := newFakeStorageWriter()
-		stager := core.NewBundleFileStager(storage, "/tmp/out", "jsonl", "none", false)
+		stager := core.NewBundleFileStager(storage, "/tmp/out", "jsonl", "none", "none", false)
 		stager.StartBundle(ctx)
 
 		if err := stager.CommitOrAbort(ctx, nil); err != nil {
@@ -109,7 +109,7 @@ func TestBundleFileStager_Lifecycle(t *testing.T) {
 
 	t.Run("Abort explicitly cleans up temp file", func(t *testing.T) {
 		storage := newFakeStorageWriter()
-		stager := core.NewBundleFileStager(storage, "/tmp/out", "jsonl", "none", false)
+		stager := core.NewBundleFileStager(storage, "/tmp/out", "jsonl", "none", "none", false)
 		stager.StartBundle(ctx)
 		tempURI, _, _ := stager.EnsureOpen(ctx)
 
@@ -125,7 +125,7 @@ func TestBundleFileStager_Lifecycle(t *testing.T) {
 func TestBundleFileStager_Drain(t *testing.T) {
 	ctx := context.Background()
 	storage := newFakeStorageWriter()
-	stager := core.NewBundleFileStager(storage, "/tmp/out", "parquet", "none", false)
+	stager := core.NewBundleFileStager(storage, "/tmp/out", "parquet", "none", "none", false)
 
 	stager.StartBundle(ctx)
 	_, _, err := stager.EnsureOpen(ctx)
