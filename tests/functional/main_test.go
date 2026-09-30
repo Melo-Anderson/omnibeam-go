@@ -36,8 +36,11 @@ func TestMain(m *testing.M) {
 	}
 	testPipelineBin = filepath.Join(tmpDir, binName)
 
+	gotmp := filepath.Join(repoRoot, ".gotmp")
+	_ = os.MkdirAll(gotmp, 0755)
+
 	buildCmd := exec.Command("go", "build", "-o", testPipelineBin, filepath.Join(repoRoot, "cmd", "pipeline"))
-	buildCmd.Env = append(os.Environ(), "GOTMPDIR="+filepath.Join(repoRoot, ".gotmp"))
+	buildCmd.Env = append(os.Environ(), "GOTMPDIR="+gotmp)
 	if out, err := buildCmd.CombinedOutput(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed building pipeline binary for test suite: %v\nOutput:\n%s\n", err, string(out))
 		os.Exit(1)
