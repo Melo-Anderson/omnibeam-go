@@ -12,7 +12,8 @@ func init() {
 	ports.RegisterSink("bigquery", bqSinkFactory)
 }
 
-func bqSinkFactory(ctx context.Context, cfg *domain.PipelineConfig, _ ports.SecretResolver, _ ports.StorageBackend) (ports.BeamSinkBuilder, error) {
+func bqSinkFactory(ctx context.Context, cfg *domain.PipelineConfig, deps ports.SinkDeps) (ports.BeamSinkBuilder, error) {
+	// deps.Storage is intentionally unused — BigQuery does not write files.
 	if err := cfg.Destination.BigQueryOptions.Validate(); err != nil {
 		return nil, err
 	}

@@ -24,14 +24,14 @@ func restWriterFactory(ctx context.Context, cfg *domain.PipelineConfig, sec port
 	return NewAPISink(cfg.Destination.Endpoint, cfg.Destination.APIOptions, token), nil
 }
 
-func restSinkBuilderFactory(ctx context.Context, cfg *domain.PipelineConfig, sec ports.SecretResolver, st ports.StorageBackend) (ports.BeamSinkBuilder, error) {
-	writer, err := restWriterFactory(ctx, cfg, sec)
+func restSinkBuilderFactory(ctx context.Context, cfg *domain.PipelineConfig, deps ports.SinkDeps) (ports.BeamSinkBuilder, error) {
+	writer, err := restWriterFactory(ctx, cfg, deps.Secrets)
 	if err != nil {
 		return nil, err
 	}
 	var secretToken string
-	if cfg.Destination.Endpoint.CredentialRef != "" && sec != nil {
-		secretToken, _ = sec.Resolve(ctx, cfg.Destination.Endpoint.CredentialRef)
+	if cfg.Destination.Endpoint.CredentialRef != "" && deps.Secrets != nil {
+		secretToken, _ = deps.Secrets.Resolve(ctx, cfg.Destination.Endpoint.CredentialRef)
 	}
 	return &paged_api.BatchAPIBeamSink{
 		Endpoint:    cfg.Destination.Endpoint,
@@ -40,6 +40,6 @@ func restSinkBuilderFactory(ctx context.Context, cfg *domain.PipelineConfig, sec
 		Writer:      writer,
 		Schema:      cfg.GetSchema(),
 		DLQPath:     cfg.DLQConfig.QuarantinePath,
-		DLQSink:     st,
+		DLQSink:     deps.Storage, // sourced from SinkDeps (ISP compliant)
 	}, nil
 }
