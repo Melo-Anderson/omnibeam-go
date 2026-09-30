@@ -117,7 +117,7 @@ func TestSDF_DynamicWorkRebalance_5Million(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed creating parquet output file: %v", err)
 	}
-	pqWriter := parquet.NewWriter(fOut, streams.BuildParquetSchema(&dbConfig.Schema))
+	pqWriter := parquet.NewWriter(fOut, streams.BuildParquetSchema(&dbConfig.Schema, false))
 
 	sinkChan := make(chan *domain.GenericRecord, 1024)
 	var (
@@ -133,7 +133,7 @@ func TestSDF_DynamicWorkRebalance_5Million(t *testing.T) {
 		defer fOut.Close()
 		defer pqWriter.Close()
 		for rec := range sinkChan {
-			rowMap := streams.RecordToParquetRow(rec, &dbConfig.Schema)
+			rowMap := streams.RecordToParquetRow(rec, &dbConfig.Schema, false)
 			if err := pqWriter.Write(rowMap); err != nil {
 				writerErr = err
 				return

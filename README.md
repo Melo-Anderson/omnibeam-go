@@ -188,11 +188,13 @@ gcloud dataflow flex-template run "omnibeam-job-$(date +%s)" \
 | Document | Purpose |
 |---|---|
 | [`docs/clean-code.md`](docs/clean-code.md) | Architectural standards, Clean Architecture, DDD, TDD, and SOLID compliance rules. |
+| [`docs/omnibeam-contract-spec.md`](docs/omnibeam-contract-spec.md) | Complete pipeline contract, parameter reference and schema types. |
 | [`docs/apache-beam-practices.md`](docs/apache-beam-practices.md) | Apache Beam Go SDK v2 lifecycle, serialization invariants, and worker topologies. |
 | [`docs/architecture-adapters-and-sinks.md`](docs/architecture-adapters-and-sinks.md) | Technical catalog of sources, sinks, and storage providers. |
 | [`docs/architecture-columnar-and-fusion-impact.md`](docs/architecture-columnar-and-fusion-impact.md) | Memory layouts, Stage fusion impact, and Parquet column serialization analysis. |
 | [`docs/observability.md`](docs/observability.md) | OpenTelemetry spans, metrics exporting, and trace context propagation. |
 | [`docs/features-and-roadmap.md`](docs/features-and-roadmap.md) | Available capabilities matrix and WSJF-prioritized future roadmap. |
+| [`docs/environment-docker-debug-deploy.md`](docs/environment-docker-debug-deploy.md) | Local setup, Docker Compose test infrastructure, and Cloud Dataflow Flex Template deployment. |
 
 ---
 

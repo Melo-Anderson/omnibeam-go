@@ -48,7 +48,7 @@ A arquitetura adota o padrão **Ports & Adapters (Hexagonal)**:
                                             ┌──────────────────────────────┐
                                             │      DESTINOS & SINKS        │
                                             │   • ParquetBeamSink          │
-                                            │   • DelimitedFileBeamSink    │
+                                            │   • StreamFileBeamSink    │
                                             │   • BatchAPIBeamSink         │
                                             │   • BigQuerySink (Write API) │
                                             └──────────────────────────────┘
@@ -182,8 +182,9 @@ Especializada em extração paralela de bancos de dados relacionais e documentai
 2. Implemente o contrato [`ports.PartitionedReader`](../internal/ports/partition.go):
    ```go
    type PartitionedReader interface {
-       CalculatePartitions(ctx context.Context, cfg *domain.PipelineConfig) ([]ports.PartitionSlice, error)
-       ReadPartition(ctx context.Context, slice ports.PartitionSlice, emit func(*domain.GenericRecord) error) error
+       CalculatePartitions(ctx context.Context, srcCfg any) ([]PartitionSlice, error)
+       ReadPartition(ctx context.Context, srcCfg any, slice PartitionSlice) (<-chan *domain.GenericRecord, <-chan error, error)
+       Close() error
    }
    ```
 3. Registre o conector no `init()`:

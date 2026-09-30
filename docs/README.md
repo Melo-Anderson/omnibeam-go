@@ -9,6 +9,7 @@ Welcome to the OmniBeam-Go technical documentation suite. This catalog guides en
 | Document | Description | Target Audience |
 | :--- | :--- | :--- |
 | [**Clean Code & Architecture Guidelines**](clean-code.md) | Single-responsibility limits ($\le$ 300 LOC), error handling, dependency injection, and idiomatic Go best practices. | All Contributors & Reviewers |
+| [**Pipeline Contract & Airflow LLM Spec**](omnibeam-contract-spec.md) | Comprehensive parameter reference, accepted values, source/destination contracts, and execution interface for tools. | Data Engineers & Orchestrator Developers |
 | [**Apache Beam Best Practices**](apache-beam-practices.md) | Beam lifecycle contracts (`Setup`, `StartBundle`, `ProcessElement`, `FinishBundle`), Splittable DoFns (SDF), zero-copy coders, and stateful processing. | Pipeline Developers & Data Engineers |
 | [**Adapters & Storage Sinks**](architecture-adapters-and-sinks.md) | Hexagonal architecture mapping, adapter pattern, JIT dynamic Parquet sink, BigQuery batch load sink, and compression codecs (`snappy`, `zstd`, `gzip`). | Storage & Systems Engineers |
 | [**Columnar Format & DAG Stage Fusion**](architecture-columnar-and-fusion-impact.md) | In-depth analysis of columnar data layouts, Parquet memory consumption, and Beam runner DAG stage fusion/unfusing optimizations. | Performance Engineers & Architects |

@@ -208,6 +208,9 @@ func (c *PipelineConfig) validateDestinationConfig() error {
 			return fmt.Errorf("destination.bigquery_options: %w", err)
 		}
 	}
+	if err := c.Destination.Encryption.Validate(); err != nil {
+		return fmt.Errorf("destination.encryption: %w", err)
+	}
 	return nil
 }
 

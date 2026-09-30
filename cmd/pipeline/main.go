@@ -125,6 +125,7 @@ func initStorageResolver(ctx context.Context, cfg *domain.PipelineConfig) (ports
 }
 
 func executePipeline(ctx context.Context, cfg *domain.PipelineConfig) error {
+	cfg.ApplyDefaults()
 	storageBackend, err := initStorageResolver(ctx, cfg)
 	if err != nil {
 		return err

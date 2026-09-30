@@ -9,7 +9,7 @@ import (
 )
 
 // BuildParquetSchema converts a canonical domain.Schema into a parquet-go schema tree.
-func BuildParquetSchema(domainSchema *domain.Schema) *parquet.Schema {
+func BuildParquetSchema(domainSchema *domain.Schema, withSourceFile bool) *parquet.Schema {
 	fields := make(map[string]parquet.Node, len(domainSchema.Fields)+2)
 	for _, f := range domainSchema.Fields {
 		var node parquet.Node
@@ -39,7 +39,9 @@ func BuildParquetSchema(domainSchema *domain.Schema) *parquet.Schema {
 	}
 
 	fields["_ingested_at"] = parquet.Required(parquet.String())
-	fields["_source_file"] = parquet.Required(parquet.String())
+	if withSourceFile {
+		fields["_source_file"] = parquet.Required(parquet.String())
+	}
 
 	return parquet.NewSchema("record", parquet.Group(fields))
 }
@@ -51,9 +53,7 @@ type ParquetColumnExtractor func(val *domain.FieldValue, rowMap map[string]any)
 type ParquetRowMapper func(rec *domain.GenericRecord) map[string]any
 
 // CompileParquetRowMapper pre-compiles per-column extractor closures for the given schema.
-// The switch over field types executes ONCE at Setup() time.
-func CompileParquetRowMapper(domainSchema *domain.Schema) ParquetRowMapper {
-	numExtra := 2 // _ingested_at, _source_file
+func CompileParquetRowMapper(domainSchema *domain.Schema, withSourceFile bool) ParquetRowMapper {
 	extractors := make([]ParquetColumnExtractor, len(domainSchema.Fields))
 
 	for i, f := range domainSchema.Fields {
@@ -99,7 +99,7 @@ func CompileParquetRowMapper(domainSchema *domain.Schema) ParquetRowMapper {
 	}
 
 	return func(rec *domain.GenericRecord) map[string]any {
-		rowMap := make(map[string]any, len(extractors)+numExtra)
+		rowMap := make(map[string]any, len(extractors)+2)
 		for i, ext := range extractors {
 			if i < len(rec.Values) {
 				ext(&rec.Values[i], rowMap)
@@ -112,10 +112,12 @@ func CompileParquetRowMapper(domainSchema *domain.Schema) ParquetRowMapper {
 			rowMap["_ingested_at"] = time.Now().UTC().Format(time.RFC3339)
 		}
 
-		if rec.AuditFields != nil && rec.AuditFields["_source_file"] != "" {
-			rowMap["_source_file"] = rec.AuditFields["_source_file"]
-		} else {
-			rowMap["_source_file"] = "unknown"
+		if withSourceFile {
+			if rec.AuditFields != nil && rec.AuditFields["_source_file"] != "" {
+				rowMap["_source_file"] = rec.AuditFields["_source_file"]
+			} else {
+				rowMap["_source_file"] = "unknown"
+			}
 		}
 
 		return rowMap
@@ -123,8 +125,8 @@ func CompileParquetRowMapper(domainSchema *domain.Schema) ParquetRowMapper {
 }
 
 // RecordToParquetRow maps a domain.GenericRecord into a serializable map based on domain.Schema.
-func RecordToParquetRow(rec *domain.GenericRecord, domainSchema *domain.Schema) map[string]any {
-	mapper := CompileParquetRowMapper(domainSchema)
+func RecordToParquetRow(rec *domain.GenericRecord, domainSchema *domain.Schema, withSourceFile bool) map[string]any {
+	mapper := CompileParquetRowMapper(domainSchema, withSourceFile)
 	return mapper(rec)
 }
 
@@ -133,8 +135,8 @@ type ParquetDirectRowEncoder func(rec *domain.GenericRecord, dest []parquet.Valu
 
 // CompileParquetDirectRowEncoder pre-compiles per-column typed closures mapping GenericRecord
 // fields to physical parquet.Value elements at known column indices without reflection or maps.
-func CompileParquetDirectRowEncoder(domainSchema *domain.Schema) (ParquetDirectRowEncoder, int) {
-	pqSchema := BuildParquetSchema(domainSchema)
+func CompileParquetDirectRowEncoder(domainSchema *domain.Schema, withSourceFile bool) (ParquetDirectRowEncoder, int) {
+	pqSchema := BuildParquetSchema(domainSchema, withSourceFile)
 	numCols := len(pqSchema.Columns())
 
 	type colEncoder func(val *domain.FieldValue, dest []parquet.Value)
@@ -201,7 +203,7 @@ func CompileParquetDirectRowEncoder(domainSchema *domain.Schema) (ParquetDirectR
 	}
 
 	ingestedCol, _ := pqSchema.Lookup("_ingested_at")
-	sourceCol, _ := pqSchema.Lookup("_source_file")
+	sourceCol, hasSourceCol := pqSchema.Lookup("_source_file")
 
 	return func(rec *domain.GenericRecord, dest []parquet.Value) parquet.Row {
 		if len(dest) < numCols {
@@ -224,11 +226,13 @@ func CompileParquetDirectRowEncoder(domainSchema *domain.Schema) (ParquetDirectR
 		}
 		dest[ingestedCol.ColumnIndex] = parquet.ByteArrayValue([]byte(ingestedAt)).Level(0, ingestedCol.MaxDefinitionLevel, ingestedCol.ColumnIndex)
 
-		sourceFile := "unknown"
-		if rec.AuditFields != nil && rec.AuditFields["_source_file"] != "" {
-			sourceFile = rec.AuditFields["_source_file"]
+		if hasSourceCol {
+			sourceFile := "unknown"
+			if rec.AuditFields != nil && rec.AuditFields["_source_file"] != "" {
+				sourceFile = rec.AuditFields["_source_file"]
+			}
+			dest[sourceCol.ColumnIndex] = parquet.ByteArrayValue([]byte(sourceFile)).Level(0, sourceCol.MaxDefinitionLevel, sourceCol.ColumnIndex)
 		}
-		dest[sourceCol.ColumnIndex] = parquet.ByteArrayValue([]byte(sourceFile)).Level(0, sourceCol.MaxDefinitionLevel, sourceCol.ColumnIndex)
 
 		return parquet.Row(dest)
 	}, numCols

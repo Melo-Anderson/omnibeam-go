@@ -181,3 +181,17 @@ func TestFusedEnrichAndValidateFn_ProcessElement_NilPlanRoutesDLQ(t *testing.T) 
 		t.Errorf("expected FailedColumn='_setup', got %q", emittedDLQ.FailedColumn)
 	}
 }
+
+func TestFusedEnrichAndValidateFn_ProcessElement_NilInputDefensive(t *testing.T) {
+	fn := core.NewFusedEnrichAndValidateFn(domain.Schema{}, "job", "exec", domain.QualityConfig{}, domain.SecurityConfig{})
+	_ = fn.Setup(context.Background())
+
+	// Should not panic nor emit anything
+	fn.ProcessElement(
+		context.Background(),
+		nil,
+		func(_ *domain.GenericRecord) { t.Fatal("unexpected valid emission on nil") },
+		func(_ *domain.DeadLetterRecord) { t.Fatal("unexpected dlq emission on nil") },
+		func(_ *domain.AuditRecord) { t.Fatal("unexpected audit emission on nil") },
+	)
+}

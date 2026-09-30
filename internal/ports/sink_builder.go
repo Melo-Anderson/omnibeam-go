@@ -14,6 +14,19 @@ type BeamSourceBuilder interface {
 	BuildSource(s beam.Scope) beam.PCollection
 }
 
+// SinkDeps groups infrastructure resources injected into SinkFactory constructors.
+// Fields are optional: a factory uses only the dependencies it requires.
+// This struct replaces the positional (sec SecretResolver, st StorageBackend)
+// pattern, making SinkFactory signatures stable under future extensions.
+type SinkDeps struct {
+	// Storage is the combined read/write backend for file-based sinks.
+	// Must be nil for sinks that do not write files (BigQuery, REST API, Pub/Sub).
+	Storage StorageBackend
+
+	// Secrets resolves runtime secret references (API tokens, PGP keys, KMS key IDs).
+	Secrets SecretResolver
+}
+
 // BeamSinkBuilder constructs destination write operations for valid records in the Beam DAG.
 type BeamSinkBuilder interface {
 	BuildSink(s beam.Scope, validRecords beam.PCollection)

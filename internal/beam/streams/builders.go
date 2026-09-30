@@ -32,10 +32,12 @@ func (b *ByteStreamBeamSource) BuildSource(s beam.Scope) beam.PCollection {
 
 // ParquetBeamSink builds a Parquet sink in the Beam DAG.
 type ParquetBeamSink struct {
-	Storage     ports.StorageWriter
-	OutputPath  string
-	Compression string
-	Schema      domain.Schema
+	Storage           ports.StorageWriter
+	OutputPath        string
+	Compression       string
+	Encryption        string
+	IncludeSourceFile bool
+	Schema            domain.Schema
 }
 
 // Compile-time assertion: ParquetBeamSink must satisfy ports.BeamSinkBuilder (LSP).
@@ -43,32 +45,43 @@ var _ ports.BeamSinkBuilder = (*ParquetBeamSink)(nil)
 
 // BuildSink builds the Parquet sink transform.
 func (s *ParquetBeamSink) BuildSink(scope beam.Scope, validRecords beam.PCollection) {
-	beam.ParDo0(scope, NewParquetSinkDoFn(s.Storage, s.OutputPath, s.Compression, s.Schema), validRecords)
+	sinkFn := NewParquetSinkDoFn(s.Storage, s.OutputPath, s.Compression, s.Encryption, s.Schema)
+	sinkFn.IncludeSourceFile = s.IncludeSourceFile
+	beam.ParDo0(scope, sinkFn, validRecords)
 }
 
-// DelimitedFileBeamSink builds a CSV/JSONL/TXT file sink in the Beam DAG.
-type DelimitedFileBeamSink struct {
+// StreamFileBeamSink builds a stream-formatted (CSV/JSONL/TXT/TSV) file sink in the Beam DAG.
+type StreamFileBeamSink struct {
 	Storage     ports.StorageWriter
 	Formatter   ports.RecordFormatter
 	OutputDir   string
 	Format      string
 	Compression string
-	SingleFile  bool
-	Schema      domain.Schema
+	Encryption  domain.EncryptionConfig
+	// FormatOptions carries delimiter, header, and line-terminator configuration
+	// that must be forwarded to the DoFn for correct serialization on remote workers.
+	FormatOptions domain.FormatOptions
+	SingleFile    bool
+	Schema        domain.Schema
 }
 
-// Compile-time assertion: DelimitedFileBeamSink must satisfy ports.BeamSinkBuilder (LSP).
-var _ ports.BeamSinkBuilder = (*DelimitedFileBeamSink)(nil)
+// Compile-time assertion: StreamFileBeamSink must satisfy ports.BeamSinkBuilder (LSP).
+var _ ports.BeamSinkBuilder = (*StreamFileBeamSink)(nil)
 
-// BuildSink builds the delimited file sink transform.
-func (s *DelimitedFileBeamSink) BuildSink(scope beam.Scope, validRecords beam.PCollection) {
-	beam.ParDo0(scope, NewDelimitedFileSinkDoFn(
+// BuildSink builds the stream file sink transform.
+func (s *StreamFileBeamSink) BuildSink(scope beam.Scope, validRecords beam.PCollection) {
+	beam.ParDo0(scope, NewStreamFileSinkDoFn(
 		s.Storage,
 		s.Formatter,
 		s.OutputDir,
 		s.Format,
 		s.Compression,
+		s.Encryption,
 		s.SingleFile,
+		s.FormatOptions,
 		s.Schema,
 	), validRecords)
 }
+
+// DelimitedFileBeamSink is a type alias for StreamFileBeamSink maintaining backward compatibility.
+type DelimitedFileBeamSink = StreamFileBeamSink

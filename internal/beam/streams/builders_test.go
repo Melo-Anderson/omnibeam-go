@@ -59,18 +59,21 @@ func TestStreamBuilders(t *testing.T) {
 		Storage:     &dummyStorageWriter{},
 		OutputPath:  "gs://bucket/out.parquet",
 		Compression: "snappy",
+		Encryption:  "none",
 		Schema:      domain.Schema{},
 	}
 	parquetSink.BuildSink(s, col1)
 
 	delimSink := &DelimitedFileBeamSink{
-		Storage:     &dummyStorageWriter{},
-		Formatter:   &dummyRecordFormatter{},
-		OutputDir:   "gs://bucket/out_csv",
-		Format:      "csv",
-		Compression: "none",
-		SingleFile:  true,
-		Schema:      domain.Schema{},
+		Storage:       &dummyStorageWriter{},
+		Formatter:     &dummyRecordFormatter{},
+		OutputDir:     "gs://bucket/out_csv",
+		Format:        "csv",
+		Compression:   "none",
+		Encryption:    domain.EncryptionConfig{Type: "none"},
+		FormatOptions: domain.FormatOptions{},
+		SingleFile:    true,
+		Schema:        domain.Schema{},
 	}
 	delimSink.BuildSink(s, col2)
 }

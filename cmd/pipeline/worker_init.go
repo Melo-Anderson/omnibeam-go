@@ -56,8 +56,11 @@ func registerWorkerStreamProviders() {
 		dec, _ := codecs.NewPipelineBuilder().BuildDecoder(cfg)
 		return dec
 	})
-	streams.SetRecordFormatterProvider(func(format string, schema *domain.Schema) ports.RecordFormatter {
-		formatter, _ := formatters.BuildFormatter(format, domain.FormatOptions{Delimiter: ",", IncludeHeader: true})
+	// FIX (Phase 2): forward deserialized opts from the DoFn struct, not hardcoded defaults.
+	// Prior to this fix, remote Dataflow workers always received Delimiter="," IncludeHeader=true
+	// regardless of what the user specified in the pipeline manifest.
+	streams.SetRecordFormatterProvider(func(format string, opts domain.FormatOptions, schema *domain.Schema) ports.RecordFormatter {
+		formatter, _ := formatters.BuildFormatter(format, opts)
 		return formatter
 	})
 	streams.SetCompressorProvider(compression.WrapCompressor)

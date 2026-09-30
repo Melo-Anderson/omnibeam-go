@@ -18,7 +18,7 @@ func TestParquetSinkDoFn_SerializationSanity(t *testing.T) {
 		},
 	}
 
-	sink := streams.NewParquetSinkDoFn(nil, "/tmp/parquet_test", "snappy", schema)
+	sink := streams.NewParquetSinkDoFn(nil, "/tmp/parquet_test", "snappy", "none", schema)
 
 	// Simulate serialization across Beam distributed worker nodes
 	data, err := json.Marshal(sink)
@@ -36,6 +36,9 @@ func TestParquetSinkDoFn_SerializationSanity(t *testing.T) {
 	}
 	if remoteSink.Compression != "snappy" {
 		t.Errorf("expected Compression=snappy, got %s", remoteSink.Compression)
+	}
+	if remoteSink.Encryption != "none" {
+		t.Errorf("expected Encryption=none, got %s", remoteSink.Encryption)
 	}
 
 	ctx := context.Background()

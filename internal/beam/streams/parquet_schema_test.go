@@ -22,7 +22,7 @@ func TestBuildParquetSchema(t *testing.T) {
 		},
 	}
 
-	pqSchema := BuildParquetSchema(schema)
+	pqSchema := BuildParquetSchema(schema, true)
 	if pqSchema == nil {
 		t.Fatal("expected non-nil parquet schema")
 	}
@@ -57,7 +57,7 @@ func TestCompileParquetRowMapper(t *testing.T) {
 		},
 	}
 
-	mapper := CompileParquetRowMapper(schema)
+	mapper := CompileParquetRowMapper(schema, true)
 	if mapper == nil {
 		t.Fatal("expected non-nil mapper")
 	}
@@ -117,7 +117,7 @@ func BenchmarkCompileParquetRowMapper(b *testing.B) {
 		},
 	}
 
-	mapper := CompileParquetRowMapper(schema)
+	mapper := CompileParquetRowMapper(schema, true)
 	rec := domain.NewGenericRecord("orders_schema", 7)
 	rec.SetInt64(0, 1001)
 	rec.SetString(1, "Alice")
@@ -147,7 +147,7 @@ func TestCompileParquetDirectRowEncoder(t *testing.T) {
 		},
 	}
 
-	encoder, numCols := CompileParquetDirectRowEncoder(schema)
+	encoder, numCols := CompileParquetDirectRowEncoder(schema, true)
 	if encoder == nil {
 		t.Fatal("expected non-nil encoder")
 	}
@@ -175,7 +175,7 @@ func TestCompileParquetDirectRowEncoder(t *testing.T) {
 
 	// Verify writing row to parquet.Writer works without errors
 	var out bytes.Buffer
-	pqWriter := parquet.NewWriter(&out, BuildParquetSchema(schema))
+	pqWriter := parquet.NewWriter(&out, BuildParquetSchema(schema, true))
 	if _, err := pqWriter.WriteRows([]parquet.Row{row}); err != nil {
 		t.Fatalf("failed writing direct row: %v", err)
 	}
@@ -207,7 +207,7 @@ func BenchmarkCompileParquetDirectRowEncoder(b *testing.B) {
 		},
 	}
 
-	encoder, numCols := CompileParquetDirectRowEncoder(schema)
+	encoder, numCols := CompileParquetDirectRowEncoder(schema, true)
 	rec := domain.NewGenericRecord("orders_schema", 7)
 	rec.SetInt64(0, 1001)
 	rec.SetString(1, "Alice")
@@ -223,5 +223,52 @@ func BenchmarkCompileParquetDirectRowEncoder(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = encoder(rec, rowBuf)
+	}
+}
+
+func TestBuildParquetSchema_OmitSourceFile(t *testing.T) {
+	schema := &domain.Schema{
+		Fields: []domain.Field{
+			{Name: "id", Type: domain.TypeInt64, Nullable: false},
+			{Name: "name", Type: domain.TypeString, Nullable: true},
+		},
+	}
+
+	// Without source_file (e.g. database/API sources)
+	pqSchema := BuildParquetSchema(schema, false)
+	if pqSchema == nil {
+		t.Fatal("expected non-nil parquet schema")
+	}
+
+	fields := pqSchema.Fields()
+	fieldNames := make(map[string]bool)
+	for _, f := range fields {
+		fieldNames[f.Name()] = true
+	}
+
+	if !fieldNames["_ingested_at"] {
+		t.Error("expected _ingested_at in schema")
+	}
+	if fieldNames["_source_file"] {
+		t.Error("expected _source_file to be omitted from schema when includeSourceFile=false")
+	}
+	if len(fields) != 3 { // id, name, _ingested_at
+		t.Errorf("expected 3 fields, got %d", len(fields))
+	}
+
+	encoder, numCols := CompileParquetDirectRowEncoder(schema, false)
+	if numCols != 3 {
+		t.Errorf("expected 3 columns in direct encoder, got %d", numCols)
+	}
+
+	rec := domain.NewGenericRecord("sql-schema", 2)
+	rec.SetInt64(0, 42)
+	rec.SetString(1, "Bob")
+	rec.AuditFields["_ingested_at"] = "2026-09-29T12:00:00Z"
+
+	dest := make([]parquet.Value, numCols)
+	row := encoder(rec, dest)
+	if len(row) != 3 {
+		t.Errorf("expected row of length 3, got %d", len(row))
 	}
 }

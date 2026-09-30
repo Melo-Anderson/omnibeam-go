@@ -152,7 +152,11 @@ func buildDestinationSink(
 	secretResolver ports.SecretResolver,
 	_ domain.Schema,
 ) (ports.BeamSinkBuilder, error) {
-	return ports.BuildSink(ctx, cfg.Destination.Type, cfg, secretResolver, storageBackend)
+	deps := ports.SinkDeps{
+		Storage: storageBackend,
+		Secrets: secretResolver,
+	}
+	return ports.BuildSink(ctx, cfg.Destination.Type, cfg, deps)
 }
 
 // ============================================================================

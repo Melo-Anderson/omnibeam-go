@@ -21,19 +21,23 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*ports.PageSlice)(nil)).Elem())
 	beam.RegisterCoder(reflect.TypeOf((*ports.PageSlice)(nil)).Elem(), encPageSlice, decPageSlice)
 
+	beam.RegisterType(reflect.TypeOf((*domain.GenericRecord)(nil)))
+	beam.RegisterCoder(reflect.TypeOf((*domain.GenericRecord)(nil)), encGenericRecordPtr, decGenericRecordPtr)
 	beam.RegisterType(reflect.TypeOf((*domain.GenericRecord)(nil)).Elem())
 	beam.RegisterCoder(reflect.TypeOf((*domain.GenericRecord)(nil)).Elem(), encGenericRecord, decGenericRecord)
 
+	beam.RegisterType(reflect.TypeOf((*domain.DeadLetterRecord)(nil)))
+	beam.RegisterCoder(reflect.TypeOf((*domain.DeadLetterRecord)(nil)), encDeadLetterRecordPtr, decDeadLetterRecordPtr)
 	beam.RegisterType(reflect.TypeOf((*domain.DeadLetterRecord)(nil)).Elem())
 	beam.RegisterCoder(reflect.TypeOf((*domain.DeadLetterRecord)(nil)).Elem(), encDeadLetterRecord, decDeadLetterRecord)
 
 	beam.RegisterType(reflect.TypeOf((*domain.PipelineMetrics)(nil)).Elem())
 	beam.RegisterCoder(reflect.TypeOf((*domain.PipelineMetrics)(nil)).Elem(), encPipelineMetrics, decPipelineMetrics)
 
-	beam.RegisterFunction(validRecordMetricItemFn)
-	beam.RegisterFunction(dlqRecordMetricItemFn)
-	beam.RegisterFunction(validRecordFlagFn)
-	beam.RegisterFunction(dlqRecordFlagFn)
+	beam.RegisterFunction(filterNonNilRecordFn)
+	beam.RegisterFunction(validRecordMetricKVFn)
+	beam.RegisterFunction(dlqRecordMetricKVFn)
+	beam.RegisterFunction(originKVToSummaryFn)
 }
 
 func encPipelineMetrics(v domain.PipelineMetrics) ([]byte, error) {
@@ -46,36 +50,74 @@ func decPipelineMetrics(data []byte) (domain.PipelineMetrics, error) {
 	return DecodePipelineMetrics(bytes.NewReader(data))
 }
 
-func validRecordMetricItemFn(rec *domain.GenericRecord) MetricItem {
+func validRecordMetricKVFn(rec *domain.GenericRecord) (string, bool) {
 	origin := "default"
 	if rec != nil && rec.AuditFields != nil && rec.AuditFields["_source_file"] != "" {
 		origin = rec.AuditFields["_source_file"]
 	} else if rec != nil && rec.SchemaID != "" {
 		origin = rec.SchemaID
 	}
-	return MetricItem{
-		Origin: origin,
-		IsDLQ:  false,
-	}
+	return origin, false
 }
 
-func dlqRecordMetricItemFn(rec *domain.DeadLetterRecord) MetricItem {
+func dlqRecordMetricKVFn(rec *domain.DeadLetterRecord) (string, bool) {
 	origin := "unknown"
 	if rec != nil && rec.SourceFile != "" {
 		origin = rec.SourceFile
 	}
-	return MetricItem{
-		Origin: origin,
-		IsDLQ:  true,
+	return origin, true
+}
+
+func originKVToSummaryFn(origin string, om domain.OriginMetric) OriginSummary {
+	return OriginSummary{Origin: origin, Metric: om}
+}
+
+// filterNonNilRecordFn drops nil records before passing them to the validation stage.
+// Uses an emitter ParDo pattern — standard and zero-reflection in Beam Go SDK.
+func filterNonNilRecordFn(rec *domain.GenericRecord, emit func(*domain.GenericRecord)) {
+	if rec != nil {
+		emit(rec)
 	}
 }
 
-func validRecordFlagFn(_ *domain.GenericRecord) bool {
-	return false
+// applyIngestionStage handles pre-filtering and fused metadata enrichment & schema validation.
+func applyIngestionStage(
+	s beam.Scope,
+	rawRecords beam.PCollection,
+	schema domain.Schema,
+	quality domain.QualityConfig,
+	sec domain.SecurityConfig,
+) (valid, dlq, audit beam.PCollection) {
+	nonNil := beam.ParDo(s.Scope("FilterNils"), filterNonNilRecordFn, rawRecords)
+	return beam.ParDo3(s.Scope("EnrichAndValidate"), NewFusedEnrichAndValidateFn(schema, "", "", quality, sec), nonNil)
 }
 
-func dlqRecordFlagFn(_ *domain.DeadLetterRecord) bool {
-	return true
+// applySinkStage routes valid, DLQ and audit records to their destination builders.
+func applySinkStage(
+	s beam.Scope,
+	valid, dlq, audit beam.PCollection,
+	sink ports.BeamSinkBuilder,
+	dlqSink ports.BeamDLQSinkBuilder,
+	auditSink ports.BeamAuditSinkBuilder,
+) {
+	sink.BuildSink(s.Scope("ValidSink"), valid)
+	dlqSink.BuildDLQ(s.Scope("DLQSink"), dlq)
+	if auditSink != nil {
+		auditSink.BuildAuditSink(s.Scope("AuditSink"), audit)
+	}
+}
+
+// applyMetricsStage executes a two-stage aggregation:
+// 1. CombinePerKey lifts per-origin counters locally on workers (zero map allocations).
+// 2. Combine aggregates the resulting summaries into a guaranteed singleton domain.PipelineMetrics.
+func applyMetricsStage(s beam.Scope, valid, dlq beam.PCollection) beam.PCollection {
+	validKV := beam.ParDo(s.Scope("ValidMetricKV"), validRecordMetricKVFn, valid)
+	dlqKV := beam.ParDo(s.Scope("DLQMetricKV"), dlqRecordMetricKVFn, dlq)
+	allKV := beam.Flatten(s.Scope("FlattenMetricKVs"), validKV, dlqKV)
+
+	perOrigin := beam.CombinePerKey(s.Scope("CombinePerOrigin"), &OriginCombinerFn{}, allKV)
+	summaries := beam.ParDo(s.Scope("ToOriginSummary"), originKVToSummaryFn, perOrigin)
+	return beam.Combine(s.Scope("CombineMetricsSummary"), &MetricsSummaryCombinerFn{}, summaries)
 }
 
 func encPartitionSlice(v ports.PartitionSlice) ([]byte, error) {
@@ -149,18 +191,15 @@ func BuildPipeline(
 		sec = security[0]
 	}
 
-	rawRecords := source.BuildSource(s)
-	valid, dlq, audit := beam.ParDo3(s, NewFusedEnrichAndValidateFn(schema, "", "", quality, sec), rawRecords)
+	// Composite: Source Stage
+	rawRecords := source.BuildSource(s.Scope("SourceStage"))
 
-	sink.BuildSink(s, valid)
-	dlqSink.BuildDLQ(s, dlq)
-	if auditSink != nil {
-		auditSink.BuildAuditSink(s, audit)
-	}
+	// Composite: Ingestion Stage (filter nils + fused enrich & validate)
+	valid, dlq, audit := applyIngestionStage(s.Scope("IngestionStage"), rawRecords, schema, quality, sec)
 
-	validMetrics := beam.ParDo(s, validRecordMetricItemFn, valid)
-	dlqMetrics := beam.ParDo(s, dlqRecordMetricItemFn, dlq)
-	allMetrics := beam.Flatten(s, validMetrics, dlqMetrics)
+	// Composite: Sink Stage (valid, DLQ, audit)
+	applySinkStage(s.Scope("SinkStage"), valid, dlq, audit, sink, dlqSink, auditSink)
 
-	return beam.Combine(s, &MetricsCombinerFn{}, allMetrics)
+	// Composite: Metrics Stage (CombinePerKey + global summary combine)
+	return applyMetricsStage(s.Scope("MetricsStage"), valid, dlq)
 }

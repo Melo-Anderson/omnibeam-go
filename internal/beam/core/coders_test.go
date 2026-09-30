@@ -257,6 +257,10 @@ func TestEncodeDecodePipelineMetrics_RoundTrip(t *testing.T) {
 		InvalidValueCounts: map[string]int64{
 			"col_c": 2,
 		},
+		OriginMetrics: map[string]domain.OriginMetric{
+			"source-1.csv": {TotalRead: 3000, Valid: 2900, DLQ: 100},
+			"source-2.csv": {TotalRead: 2000, Valid: 1900, DLQ: 100},
+		},
 	}
 
 	var buf bytes.Buffer
@@ -272,20 +276,12 @@ func TestEncodeDecodePipelineMetrics_RoundTrip(t *testing.T) {
 	if decoded.PipelineID != orig.PipelineID || decoded.TotalRecordsRead != orig.TotalRecordsRead ||
 		decoded.RowsWritten != orig.RowsWritten || decoded.DeadLetterCount != orig.DeadLetterCount ||
 		decoded.Checksum != orig.Checksum || decoded.ColumnNullCounts["col_a"] != 5 ||
-		decoded.InvalidValueCounts["col_c"] != 2 {
+		decoded.InvalidValueCounts["col_c"] != 2 ||
+		decoded.OriginMetrics["source-1.csv"].TotalRead != 3000 ||
+		decoded.OriginMetrics["source-1.csv"].Valid != 2900 ||
+		decoded.OriginMetrics["source-1.csv"].DLQ != 100 ||
+		decoded.OriginMetrics["source-2.csv"].TotalRead != 2000 {
 		t.Fatalf("mismatch in decoded pipeline metrics: %+v", decoded)
-	}
-}
-
-func TestFlagFunctions(t *testing.T) {
-	rec := domain.NewGenericRecord("s", 1)
-	if validRecordFlagFn(rec) != false {
-		t.Error("validRecordFlagFn expected false")
-	}
-
-	dlq := &domain.DeadLetterRecord{}
-	if dlqRecordFlagFn(dlq) != true {
-		t.Error("dlqRecordFlagFn expected true")
 	}
 }
 

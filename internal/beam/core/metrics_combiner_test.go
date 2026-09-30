@@ -10,54 +10,24 @@ import (
 	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 )
 
-func TestMetricsCombinerFn(t *testing.T) {
-	fn := &MetricsCombinerFn{}
+func TestOriginCombinerFn_Unit(t *testing.T) {
+	fn := &OriginCombinerFn{}
 
 	acc := fn.CreateAccumulator()
-	if acc.TotalRead != 0 || acc.Valid != 0 || acc.DLQ != 0 {
-		t.Errorf("expected zero accumulator, got %+v", acc)
-	}
-
-	acc = fn.AddInput(acc, MetricItem{Origin: "file_a.csv", IsDLQ: false}) // 1 valid
-	acc = fn.AddInput(acc, MetricItem{Origin: "file_a.csv", IsDLQ: true})  // 1 DLQ
-	acc = fn.AddInput(acc, MetricItem{Origin: "file_b.csv", IsDLQ: false}) // 1 valid
+	acc = fn.AddInput(acc, false) // valid
+	acc = fn.AddInput(acc, true)  // dlq
+	acc = fn.AddInput(acc, false) // valid
 
 	if acc.TotalRead != 3 || acc.Valid != 2 || acc.DLQ != 1 {
-		t.Errorf("unexpected accumulator counts: %+v", acc)
-	}
-	if acc.OriginMetrics["file_a.csv"].TotalRead != 2 || acc.OriginMetrics["file_a.csv"].Valid != 1 || acc.OriginMetrics["file_a.csv"].DLQ != 1 {
-		t.Errorf("unexpected file_a origin metrics: %+v", acc.OriginMetrics["file_a.csv"])
-	}
-	if acc.OriginMetrics["file_b.csv"].TotalRead != 1 || acc.OriginMetrics["file_b.csv"].Valid != 1 || acc.OriginMetrics["file_b.csv"].DLQ != 0 {
-		t.Errorf("unexpected file_b origin metrics: %+v", acc.OriginMetrics["file_b.csv"])
+		t.Fatalf("unexpected accumulator: %+v", acc)
 	}
 
-	acc2 := MetricsAccumulator{
-		TotalRead: 5,
-		Valid:     4,
-		DLQ:       1,
-		OriginMetrics: map[string]domain.OriginMetric{
-			"file_b.csv": {TotalRead: 5, Valid: 4, DLQ: 1},
-		},
-	}
-	merged := fn.MergeAccumulators(acc, acc2)
+	other := OriginAccumulator{TotalRead: 2, Valid: 1, DLQ: 1}
+	merged := fn.MergeAccumulators(acc, other)
 
-	if merged.TotalRead != 8 || merged.Valid != 6 || merged.DLQ != 2 {
-		t.Errorf("unexpected merged accumulator counts: %+v", merged)
-	}
-	if merged.OriginMetrics["file_b.csv"].TotalRead != 6 || merged.OriginMetrics["file_b.csv"].Valid != 5 || merged.OriginMetrics["file_b.csv"].DLQ != 1 {
-		t.Errorf("unexpected merged file_b metrics: %+v", merged.OriginMetrics["file_b.csv"])
-	}
-
-	metrics := fn.ExtractOutput(merged)
-	if metrics.TotalRecordsRead != 8 || metrics.RowsWritten != 6 || metrics.DeadLetterCount != 2 {
-		t.Errorf("unexpected extracted domain metrics: %+v", metrics)
-	}
-	if !metrics.IsStrictlyConserved() {
-		t.Errorf("expected strict conservation to hold")
-	}
-	if !metrics.IsConservedPerOrigin() {
-		t.Errorf("expected per-origin conservation to hold")
+	out := fn.ExtractOutput(merged)
+	if out.TotalRead != 5 || out.Valid != 3 || out.DLQ != 2 {
+		t.Fatalf("unexpected output: %+v", out)
 	}
 }
 
@@ -66,9 +36,18 @@ func TestMetricItem_CustomBinaryCoder(t *testing.T) {
 		name string
 		item MetricItem
 	}{
-		{"valid record file origin", MetricItem{Origin: "gs://bucket/path/data.csv.gz", IsDLQ: false}},
-		{"dlq record table origin", MetricItem{Origin: "postgres.public.orders", IsDLQ: true}},
-		{"empty origin", MetricItem{Origin: "", IsDLQ: false}},
+		{
+			name: "valid record file origin",
+			item: MetricItem{Origin: "gs://bucket/path/data.csv.gz", IsDLQ: false},
+		},
+		{
+			name: "dlq record table origin",
+			item: MetricItem{Origin: "postgres.public.orders", IsDLQ: true},
+		},
+		{
+			name: "empty origin",
+			item: MetricItem{Origin: "", IsDLQ: false},
+		},
 	}
 
 	for _, tc := range tests {
@@ -88,7 +67,15 @@ func TestMetricItem_CustomBinaryCoder(t *testing.T) {
 	}
 }
 
-func TestPipeline_MetricsCombiner_Integration(t *testing.T) {
+func init() {
+	beam.RegisterFunction(metricItemToKVFn)
+}
+
+func metricItemToKVFn(item MetricItem) (string, bool) {
+	return item.Origin, item.IsDLQ
+}
+
+func TestTwoStageMetrics_PipelineIntegration(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 
 	inputs := beam.Create(s,
@@ -98,8 +85,11 @@ func TestPipeline_MetricsCombiner_Integration(t *testing.T) {
 		MetricItem{Origin: "customers.csv", IsDLQ: false},
 		MetricItem{Origin: "customers.csv", IsDLQ: true},
 	)
+	kvs := beam.ParDo(s, metricItemToKVFn, inputs)
 
-	metricsPCol := beam.Combine(s, &MetricsCombinerFn{}, inputs)
+	perOrigin := beam.CombinePerKey(s, &OriginCombinerFn{}, kvs)
+	summaries := beam.ParDo(s, originKVToSummaryFn, perOrigin)
+	finalMetrics := beam.Combine(s, &MetricsSummaryCombinerFn{}, summaries)
 
 	expected := domain.PipelineMetrics{
 		TotalRecordsRead: 5,
@@ -109,11 +99,14 @@ func TestPipeline_MetricsCombiner_Integration(t *testing.T) {
 			"orders.csv":    {TotalRead: 3, Valid: 2, DLQ: 1},
 			"customers.csv": {TotalRead: 2, Valid: 1, DLQ: 1},
 		},
+		ColumnNullCounts:   make(map[string]int64),
+		InvalidValueCounts: make(map[string]int64),
+		CustomMetrics:      make(map[string]any),
 	}
 
-	passert.Equals(s, metricsPCol, expected)
+	passert.Equals(s, finalMetrics, expected)
 
 	if err := ptest.Run(p); err != nil {
-		t.Fatalf("ptest failed executing metrics combiner pipeline: %v", err)
+		t.Fatalf("ptest failed executing two-stage metrics pipeline: %v", err)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"time"
 
 	"github.com/omnibeam/dataflow-compute-go/internal/domain"
@@ -134,6 +135,33 @@ func EncodePipelineMetrics(m domain.PipelineMetrics, w io.Writer) error {
 	if err := writeMapStringInt64(w, m.InvalidValueCounts); err != nil {
 		return err
 	}
+	return writeOriginMetrics(w, m.OriginMetrics)
+}
+
+func writeOriginMetrics(w io.Writer, m map[string]domain.OriginMetric) error {
+	if err := writeVarint(w, int64(len(m))); err != nil {
+		return err
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := m[k]
+		if err := writeString(w, k); err != nil {
+			return err
+		}
+		if err := writeVarint(w, v.TotalRead); err != nil {
+			return err
+		}
+		if err := writeVarint(w, v.Valid); err != nil {
+			return err
+		}
+		if err := writeVarint(w, v.DLQ); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -141,11 +169,16 @@ func writeMapStringInt64(w io.Writer, m map[string]int64) error {
 	if err := writeVarint(w, int64(len(m))); err != nil {
 		return err
 	}
-	for k, v := range m {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
 		if err := writeString(w, k); err != nil {
 			return err
 		}
-		if err := writeVarint(w, v); err != nil {
+		if err := writeVarint(w, m[k]); err != nil {
 			return err
 		}
 	}
@@ -182,6 +215,10 @@ func DecodePipelineMetrics(r io.Reader) (domain.PipelineMetrics, error) {
 	if err != nil {
 		return domain.PipelineMetrics{}, err
 	}
+	originMetrics, err := readOriginMetrics(r)
+	if err != nil {
+		return domain.PipelineMetrics{}, err
+	}
 	return domain.PipelineMetrics{
 		PipelineID:          pipeID,
 		RunID:               runID,
@@ -196,8 +233,41 @@ func DecodePipelineMetrics(r io.Reader) (domain.PipelineMetrics, error) {
 		Checksum:            checksum,
 		ColumnNullCounts:    nullCounts,
 		InvalidValueCounts:  invalidCounts,
+		OriginMetrics:       originMetrics,
 		CustomMetrics:       make(map[string]any),
 	}, nil
+}
+
+func readOriginMetrics(r io.Reader) (map[string]domain.OriginMetric, error) {
+	n, err := readVarint(r)
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string]domain.OriginMetric, n)
+	for i := int64(0); i < n; i++ {
+		k, err := readString(r)
+		if err != nil {
+			return nil, err
+		}
+		total, err := readVarint(r)
+		if err != nil {
+			return nil, err
+		}
+		valid, err := readVarint(r)
+		if err != nil {
+			return nil, err
+		}
+		dlq, err := readVarint(r)
+		if err != nil {
+			return nil, err
+		}
+		m[k] = domain.OriginMetric{
+			TotalRead: total,
+			Valid:     valid,
+			DLQ:       dlq,
+		}
+	}
+	return m, nil
 }
 
 func readMapStringInt64(r io.Reader) (map[string]int64, error) {
@@ -238,6 +308,18 @@ func decGenericRecord(data []byte) (domain.GenericRecord, error) {
 	return *rec, nil
 }
 
+func encGenericRecordPtr(rec *domain.GenericRecord) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := EncodeGenericRecord(rec, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func decGenericRecordPtr(data []byte) (*domain.GenericRecord, error) {
+	return DecodeGenericRecord(bytes.NewReader(data))
+}
+
 func encDeadLetterRecord(v domain.DeadLetterRecord) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := EncodeDeadLetterRecord(&v, &buf); err != nil {
@@ -252,4 +334,16 @@ func decDeadLetterRecord(data []byte) (domain.DeadLetterRecord, error) {
 		return domain.DeadLetterRecord{}, err
 	}
 	return *dlq, nil
+}
+
+func encDeadLetterRecordPtr(v *domain.DeadLetterRecord) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := EncodeDeadLetterRecord(v, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func decDeadLetterRecordPtr(data []byte) (*domain.DeadLetterRecord, error) {
+	return DecodeDeadLetterRecord(bytes.NewReader(data))
 }

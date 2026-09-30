@@ -43,9 +43,9 @@ type APISinkDoFn struct {
 	SecretToken string                   `json:"secret_token,omitempty"`
 
 	// Worker-local state — not serialized; reconstructed in Setup() / StartBundle().
-	writer  ports.BatchAPIWriter    `json:"-"`
-	dlqSink ports.StorageWriter     `json:"-"`
-	buffer  []*domain.GenericRecord `json:"-"`
+	writer      ports.BatchAPIWriter                           `json:"-"`
+	dlqSink     ports.StorageWriter                            `json:"-"`
+	batchBuffer *core.BundleBatchBuffer[*domain.GenericRecord] `json:"-"`
 }
 
 // Compile-time assertion: APISinkDoFn must satisfy beam.DoFn lifecycle.
@@ -99,17 +99,20 @@ func (fn *APISinkDoFn) Setup(_ context.Context) error {
 
 // StartBundle prepares the record buffer for the active worker bundle.
 func (fn *APISinkDoFn) StartBundle(_ context.Context) error {
-	fn.buffer = make([]*domain.GenericRecord, 0, fn.APIOptions.BatchSize)
+	if fn.batchBuffer == nil {
+		fn.batchBuffer = core.NewBundleBatchBuffer[*domain.GenericRecord](fn.APIOptions.BatchSize, fn.flushBatch)
+	} else {
+		fn.batchBuffer.Reset(fn.APIOptions.BatchSize)
+	}
 	return nil
 }
 
 // ProcessElement adds a record to the buffer and flushes when batch size is reached.
 func (fn *APISinkDoFn) ProcessElement(ctx context.Context, rec *domain.GenericRecord) error {
-	fn.buffer = append(fn.buffer, rec)
-	if len(fn.buffer) >= fn.APIOptions.BatchSize {
-		return fn.flush(ctx)
+	if fn.batchBuffer == nil {
+		fn.batchBuffer = core.NewBundleBatchBuffer[*domain.GenericRecord](fn.APIOptions.BatchSize, fn.flushBatch)
 	}
-	return nil
+	return fn.batchBuffer.Add(ctx, rec)
 }
 
 // FinishBundle flushes remaining buffered records before the bundle completes.
@@ -118,17 +121,18 @@ func (fn *APISinkDoFn) FinishBundle(ctx context.Context) error {
 	ctx, span := tracer.Start(ctx, "APISinkDoFn.FinishBundle")
 	defer span.End()
 
-	return fn.flush(ctx)
+	if fn.batchBuffer != nil {
+		return fn.batchBuffer.Flush(ctx)
+	}
+	return nil
 }
 
-func (fn *APISinkDoFn) flush(ctx context.Context) error {
-	if len(fn.buffer) == 0 || fn.writer == nil {
+func (fn *APISinkDoFn) flushBatch(ctx context.Context, batch []*domain.GenericRecord) error {
+	if len(batch) == 0 || fn.writer == nil {
 		return nil
 	}
 
-	_, failed, err := fn.writer.WriteBatch(ctx, fn.buffer, &fn.Schema)
-	fn.buffer = fn.buffer[:0]
-
+	_, failed, err := fn.writer.WriteBatch(ctx, batch, &fn.Schema)
 	if err != nil {
 		return err
 	}
@@ -143,7 +147,7 @@ func (fn *APISinkDoFn) flush(ctx context.Context) error {
 }
 
 func (fn *APISinkDoFn) writeDLQ(ctx context.Context, failed []*domain.DeadLetterRecord) error {
-	finalURI := domain.BuildOutputURI(fn.DLQPath, "jsonl", "none", false)
+	finalURI := domain.BuildOutputURI(fn.DLQPath, "jsonl", "none", "none", false)
 	tempURI, w, err := fn.dlqSink.CreateTemp(ctx, finalURI)
 	if err != nil {
 		return fmt.Errorf("failed creating temp DLQ file: %w", err)
