@@ -102,7 +102,14 @@ func (s *GenericSQLSource) CalculateSlices(ctx context.Context, cfg *domain.Data
 		}, nil
 	}
 
-	boundsQuery := BuildUniversalBoundsQuery(cfg.BaseQuery(), col, cfg.PartitionConfig.BatchSize)
+	effQuery, err := cfg.EffectiveQuery()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, fmt.Errorf("failed resolving effective query: %w", err)
+	}
+
+	boundsQuery := BuildUniversalBoundsQuery(effQuery, col, cfg.PartitionConfig.BatchSize)
 	rows, qErr := s.queryWithCircuitBreaker(ctx, boundsQuery)
 	if qErr != nil {
 		span.RecordError(qErr)
@@ -163,7 +170,14 @@ func (s *GenericSQLSource) ReadSlice(ctx context.Context, cfg *domain.DatabaseSo
 	defer span.End()
 
 	col := strings.TrimSpace(cfg.PartitionConfig.PartitionColumn)
-	query, args := BuildWorkerSliceQuery(cfg.BaseQuery(), col, slice, s.isDollarStyle)
+	effQuery, err := cfg.EffectiveQuery()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, fmt.Errorf("failed resolving effective query: %w", err)
+	}
+
+	query, args := BuildWorkerSliceQuery(effQuery, col, slice, s.isDollarStyle)
 
 	rows, qErr := s.queryWithCircuitBreaker(ctx, query, args...)
 	if qErr != nil {

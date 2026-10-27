@@ -17,6 +17,9 @@ func mongoReaderFactory(ctx context.Context, cfg *domain.PipelineConfig, sec por
 	if cfg.DatabaseSource == nil {
 		return nil, fmt.Errorf("database_source configuration is missing")
 	}
+	if cfg.DatabaseSource.Watermark != nil {
+		return nil, fmt.Errorf("watermark is not supported for mongodb source")
+	}
 	client, err := OpenClient(ctx, cfg.DatabaseSource, sec)
 	if err != nil {
 		return nil, fmt.Errorf("failed connecting to mongodb: %w", err)

@@ -155,6 +155,7 @@ Executes parallel bounded queries against relational and document databases by c
 | `pool_config` | `object` | No | `{}` | Connection pool tuning (see below). |
 | `resilience` | `object` | No | `{}` | Retry, timeout, and circuit breaker settings (see Section 4.4). |
 | `schema` | `object` | **Yes** | — | Expected schema for columns (see Section 6). |
+| `watermark` | `object` | No | `null` | Incremental watermark state configuration (see Section 4.5). |
 
 #### `database_source.partition_config`:
 - `partition_column` (`string`): Column used for numeric or timestamp interval splitting (e.g. `id`, `created_at`).
@@ -184,6 +185,7 @@ Ingests data from paginated HTTP/REST web services with built-in token-bucket ra
 | `records_path` | `string` | No | `""` | JSONPath to the nested array of record objects (e.g. `"data.items"`, `"results"`). |
 | `field_mapping` | `map[string]string` | No | `{}` | Source JSON key to Destination Schema column name mappings. |
 | `schema` | `object` | **Yes** | — | Typed schema for extracting and validating fields. |
+| `watermark` | `object` | No | `null` | Incremental watermark or state offset configuration (see Section 4.5). |
 
 #### `api_source.auth`:
 - `type` (`string`, mandatory): `"bearer_token"`, `"api_key"`, `"basic_auth"`, `"oauth2_client_credentials"`.
@@ -229,6 +231,39 @@ Configured under `api_source.retry`, `database_source.resilience`, or `destinati
 | `circuit_breaker_fails` | `int` | `5` | Consecutive failures before opening the circuit breaker. |
 | `circuit_breaker_timeout_ms` | `int` | `10000` | Cooldown period before transitioning to half-open state. |
 | `half_open_limit` | `int` | `1` | Trial requests permitted in half-open state. |
+
+### 4.5 Incremental Watermark & State Pagination (`watermark`)
+
+Configured under `database_source.watermark` or `api_source.watermark` to enable incremental delta loads and stateful pagination.
+
+```json
+"watermark": {
+  "column": "updated_at",
+  "type": "timestamp",
+  "value": "2026-10-24T00:00:00+00:00"
+}
+```
+
+| Field | Type | Mandatory | Default | Accepted Values / Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `column` | `string` | **Yes** | — | Schema column name to track (or `"offset"` / page param name for REST offset pagination). |
+| `type` | `string` | **Yes** | — | Data type: `"integer"`, `"float"`, `"timestamp"`, `"date"`, `"string"`. Must match schema type. |
+| `value` | `*string` | No | `null` | Incoming watermark value from previous execution. `null` or omitted indicates first run (full scan). |
+
+#### SQL Execution Semantics:
+- If `value` is present, OmniBeam automatically wraps the query in a subquery: `SELECT * FROM (<query>) AS _wm WHERE <column> > <literal>`, preserving existing `ORDER BY`, CTEs, and complex joins.
+- Explicit `:watermark_value` query placeholder: when present in `query`, OmniBeam replaces `:watermark_value` with the typed SQL literal and does not append the subquery filter. If `:watermark_value` is present but incoming `value` is null, the pipeline fails immediately.
+- MongoDB sources reject watermark configuration at initialization (fail-fast).
+
+#### REST API Execution Semantics:
+- For `offset_limit` pagination when `column` matches `page_param` (or `"offset"`): incoming `value` sets the initial request offset. Upon completion, the new offset advances by $\text{initial\_offset} + \text{TotalRecordsRead}$ (including valid rows and DLQ).
+- For non-offset API watermarks: when `value` is provided, OmniBeam automatically appends `?<column>=<value>` as an HTTP query parameter to upstream requests.
+
+#### Destination Restrictions:
+When `watermark` is configured:
+- `destination.output_format` must be `"parquet"`.
+- Output format must be unencrypted (envelope encryption is not supported for watermark extraction).
+- File stream sources (`source` block) do not support incremental watermark.
 
 ---
 
@@ -398,13 +433,25 @@ Upon completion, OmniBeam produces four distinct output categories:
 1. **Target Sink Output:** Parquet columnar files, delimited files, BigQuery table partitions, or API ingest confirmation.
 2. **Quarantine Files (`<quarantine_path>/dlq-*.jsonl`):** JSONL containing original payload, raw bytes, error code, failure stage, and timestamp.
 3. **Audit Files (`<quarantine_path>/audit-*.jsonl`):** Job-level metadata containing run ID, worker host, pipeline ID, start/end timestamps, and final record counters.
-4. **Metrics Report (`metrics_*.json`):** Machine-readable JSON summary containing associative counters:
-   - `records_read`: Total raw input records detected.
-   - `records_written`: Total records successfully written to analytical sink.
-   - `records_quarantined`: Total records routed to DLQ.
-   - `bytes_read`: Total input bytes processed across all partitions.
+4. **Metrics Report (`metrics.json` / `metrics_*.json`):** Machine-readable JSON summary containing associative counters and state telemetry:
+   - `total_records_read`: Total raw input records detected.
+   - `rows_written`: Total records successfully written to analytical sink.
+   - `dead_letter_count`: Total records routed to DLQ.
    - `bytes_written`: Total output bytes flushed.
-   - `error_percentage`: Calculated DLQ ratio.
+   - `files_written`: Total output files generated.
+   - `checksum`: Streaming MD5 checksum of output artifacts.
+   - `watermark`: Present when incremental watermark or state pagination is configured:
+     ```json
+     "watermark": {
+       "column": "updated_at",
+       "type": "timestamp",
+       "value": "2026-10-24T18:30:00+00:00"
+     }
+     ```
+     - **Non-regression invariant:** The emitted watermark is $\max(\text{incoming\_watermark}, \max(\text{parquet\_column}))$, strictly preventing regression.
+     - **Zero-row preservation:** When an incremental run ingests 0 rows, the incoming watermark value is preserved verbatim. On a first run with 0 rows ingested, `"value": null` is emitted.
+     - **REST offset advancement:** For offset-limit pagination, `value` advances by $\text{initial\_offset} + \text{total\_records\_read}$ (including DLQ records).
+5. **Execution Error File (`<metrics_dir>/error.txt`):** On fatal failure, OmniBeam writes `error.txt` containing the failure message in the metrics output directory (best-effort, local/mounted storage).
 
 ---
 

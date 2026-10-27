@@ -130,7 +130,10 @@ func (c *PipelineConfig) Validate() error {
 	if err := c.validateAPIConfig(); err != nil {
 		return err
 	}
-	return c.validateDestinationConfig()
+	if err := c.validateDestinationConfig(); err != nil {
+		return err
+	}
+	return c.validateWatermark()
 }
 
 func (c *PipelineConfig) validateSourceConfig() error {
@@ -210,6 +213,91 @@ func (c *PipelineConfig) validateDestinationConfig() error {
 	}
 	if err := c.Destination.Encryption.Validate(); err != nil {
 		return fmt.Errorf("destination.encryption: %w", err)
+	}
+	return nil
+}
+
+func (c *PipelineConfig) validateWatermark() error {
+	if c.Source.Watermark != nil && c.DatabaseSource == nil && c.APISource == nil {
+		return errors.New("watermark is not supported for file sources")
+	}
+
+	var wm *WatermarkConfig
+	var isOffset bool
+	if c.DatabaseSource != nil && c.DatabaseSource.Watermark != nil {
+		wm = c.DatabaseSource.Watermark
+	} else if c.APISource != nil && c.APISource.Watermark != nil {
+		wm = c.APISource.Watermark
+		isOffset = c.APISource.WatermarkIsOffset()
+	}
+
+	if wm == nil {
+		return nil
+	}
+
+	if err := wm.Validate(); err != nil {
+		return err
+	}
+	if _, err := wm.Incoming(); err != nil {
+		return err
+	}
+
+	// Destination restrictions
+	destFormat := strings.ToLower(strings.TrimSpace(c.Destination.OutputFormat))
+	if destFormat != "parquet" {
+		return fmt.Errorf("incremental watermark requires destination output_format to be parquet, got %q", destFormat)
+	}
+	if c.Destination.Encryption.Type != "" && strings.ToLower(c.Destination.Encryption.Type) != "none" {
+		return fmt.Errorf("incremental watermark is not supported with destination encryption %q", c.Destination.Encryption.Type)
+	}
+	if c.Destination.Type == "rest_api" || c.Destination.Type == "bigquery" {
+		return fmt.Errorf("incremental watermark is not supported for destination type %q", c.Destination.Type)
+	}
+	if strings.HasPrefix(c.Destination.OutputPath, "gs://") || strings.HasPrefix(c.Destination.OutputPath, "gs:\\") {
+		return errors.New("incremental watermark is currently not supported for gcs destinations")
+	}
+
+	// Schema verification
+	if !isOffset {
+		schema := c.GetSchema()
+		if len(schema.Fields) > 0 {
+			var field *Field
+			for i := range schema.Fields {
+				if schema.Fields[i].Name == wm.Column {
+					field = &schema.Fields[i]
+					break
+				}
+			}
+			if field == nil {
+				return fmt.Errorf("watermark column %q not found in schema", wm.Column)
+			}
+			if err := checkWatermarkTypeCompatibility(wm.Type, field.Type); err != nil {
+				return fmt.Errorf("watermark column %q type incompatible: %w", wm.Column, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func checkWatermarkTypeCompatibility(wmType WatermarkType, fieldType DataType) error {
+	switch wmType {
+	case WatermarkTypeInteger:
+		if fieldType != TypeInt64 {
+			return fmt.Errorf("watermark type integer requires schema int64, got %s", fieldType)
+		}
+	case WatermarkTypeFloat:
+		if fieldType != TypeFloat64 {
+			return fmt.Errorf("watermark type float requires schema float64, got %s", fieldType)
+		}
+	case WatermarkTypeTimestamp, WatermarkTypeDate:
+		if fieldType != TypeTimestamp {
+			return fmt.Errorf("watermark type %s requires schema timestamp, got %s", wmType, fieldType)
+		}
+	case WatermarkTypeString:
+		if fieldType != TypeString {
+			return fmt.Errorf("watermark type string requires schema string, got %s", fieldType)
+		}
 	}
 	return nil
 }

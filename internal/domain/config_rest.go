@@ -1,5 +1,9 @@
 package domain
 
+import (
+	"strings"
+)
+
 type PaginationType string
 
 const (
@@ -131,6 +135,20 @@ type APISourceConfig struct {
 	RecordsPath   string              `json:"records_path,omitempty"`
 	FieldMapping  map[string]string   `json:"field_mapping,omitempty"`
 	Schema        Schema              `json:"schema"`
+	Watermark     *WatermarkConfig    `json:"watermark,omitempty"`
+}
+
+// WatermarkIsOffset returns true if the watermark tracks pagination offset instead of a record schema column.
+func (cfg *APISourceConfig) WatermarkIsOffset() bool {
+	if cfg == nil || cfg.Watermark == nil {
+		return false
+	}
+	if cfg.Pagination.Type != PaginationOffsetLimit {
+		return false
+	}
+	col := strings.ToLower(strings.TrimSpace(cfg.Watermark.Column))
+	param := strings.ToLower(strings.TrimSpace(cfg.Pagination.PageParam))
+	return col == "offset" || (param != "" && col == param)
 }
 
 // ApplyDefaults populates default values for omitted fields in APISourceConfig.
