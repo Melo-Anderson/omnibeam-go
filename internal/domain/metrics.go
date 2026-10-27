@@ -34,6 +34,7 @@ type PipelineMetrics struct {
 	ExecutionDurationMs   int64                   `json:"execution_duration_ms"`
 	RecordsPerSecond      float64                 `json:"records_per_second"`
 	ThroughputMBPerSecond float64                 `json:"throughput_mb_per_second"`
+	Watermark             *WatermarkOutput        `json:"watermark,omitempty"`
 	OriginMetrics         map[string]OriginMetric `json:"origin_metrics,omitempty"`
 	ColumnNullCounts      map[string]int64        `json:"-"`
 	InvalidValueCounts    map[string]int64        `json:"-"`
@@ -154,6 +155,7 @@ func (m *PipelineMetrics) Snapshot() PipelineMetrics {
 		ExecutionDurationMs:   m.ExecutionDurationMs,
 		RecordsPerSecond:      m.RecordsPerSecond,
 		ThroughputMBPerSecond: m.ThroughputMBPerSecond,
+		Watermark:             copyWatermark(m.Watermark),
 		OriginMetrics:         originMetrics,
 		ColumnNullCounts:      nullCounts,
 		InvalidValueCounts:    invalidCounts,
@@ -189,4 +191,16 @@ func (m *PipelineMetrics) MarshalJSON() ([]byte, error) {
 		root[k] = v
 	}
 	return json.Marshal(root)
+}
+
+func copyWatermark(w *WatermarkOutput) *WatermarkOutput {
+	if w == nil {
+		return nil
+	}
+	cp := *w
+	if w.Value != nil {
+		v := *w.Value
+		cp.Value = &v
+	}
+	return &cp
 }

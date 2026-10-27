@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/omnibeam/dataflow-compute-go/internal/domain"
 	"github.com/omnibeam/dataflow-compute-go/internal/ports"
@@ -44,13 +45,20 @@ func (r *RESTReader) EstimatePages(ctx context.Context, apiCfg any) ([]ports.Pag
 			initialPage = 1
 		}
 
+		startOffset := 0
+		if cfg.Pagination.Type == domain.PaginationOffsetLimit && cfg.WatermarkIsOffset() && cfg.Watermark.Value != nil {
+			if n, err := strconv.Atoi(strings.TrimSpace(*cfg.Watermark.Value)); err == nil && n > 0 {
+				startOffset = n
+			}
+		}
+
 		// Check if TotalPagesHint is given
 		if cfg.Pagination.TotalPagesHint > 0 {
 			slices := make([]ports.PageSlice, cfg.Pagination.TotalPagesHint)
 			for i := 0; i < cfg.Pagination.TotalPagesHint; i++ {
 				pageIdx := i + initialPage
 				if cfg.Pagination.Type == domain.PaginationOffsetLimit {
-					pageIdx = i * cfg.Pagination.PageSize
+					pageIdx = startOffset + (i * cfg.Pagination.PageSize)
 				}
 				slices[i] = ports.PageSlice{
 					PageIndex: pageIdx,
@@ -96,6 +104,25 @@ func (r *RESTReader) EstimatePages(ctx context.Context, apiCfg any) ([]ports.Pag
 						}
 
 						if totalCount > 0 && cfg.Pagination.PageSize > 0 {
+							if cfg.Pagination.Type == domain.PaginationOffsetLimit && startOffset > 0 {
+								if float64(startOffset) >= totalCount {
+									return []ports.PageSlice{{
+										PageIndex: startOffset,
+										PageSize:  cfg.Pagination.PageSize,
+									}}, nil
+								}
+								remaining := totalCount - float64(startOffset)
+								numPages := int(math.Ceil(remaining / float64(cfg.Pagination.PageSize)))
+								slices := make([]ports.PageSlice, numPages)
+								for i := 0; i < numPages; i++ {
+									slices[i] = ports.PageSlice{
+										PageIndex: startOffset + (i * cfg.Pagination.PageSize),
+										PageSize:  cfg.Pagination.PageSize,
+									}
+								}
+								return slices, nil
+							}
+
 							numPages := int(math.Ceil(totalCount / float64(cfg.Pagination.PageSize)))
 							slices := make([]ports.PageSlice, numPages)
 							for i := 0; i < numPages; i++ {
@@ -115,9 +142,13 @@ func (r *RESTReader) EstimatePages(ctx context.Context, apiCfg any) ([]ports.Pag
 			}
 		}
 
-		// Default fallback: 1 initial slice
+		// Default fallback
+		defaultPage := initialPage
+		if cfg.Pagination.Type == domain.PaginationOffsetLimit && startOffset > 0 {
+			defaultPage = startOffset
+		}
 		return []ports.PageSlice{{
-			PageIndex: initialPage,
+			PageIndex: defaultPage,
 			PageSize:  cfg.Pagination.PageSize,
 		}}, nil
 
@@ -213,6 +244,10 @@ func (r *RESTReader) buildRequestURL(cfg domain.APISourceConfig, page ports.Page
 	q := parsedURL.Query()
 	for k, v := range cfg.QueryParams {
 		q.Set(k, v)
+	}
+
+	if cfg.Watermark != nil && cfg.Watermark.Value != nil && strings.TrimSpace(*cfg.Watermark.Value) != "" && !cfg.WatermarkIsOffset() {
+		q.Set(cfg.Watermark.Column, strings.TrimSpace(*cfg.Watermark.Value))
 	}
 
 	switch cfg.Pagination.Type {

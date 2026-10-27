@@ -64,7 +64,8 @@ func (e *EncryptionConfig) Validate() error {
 }
 
 type DestinationConfig struct {
-	Type                string             `json:"type"`          // "local_storage", "storage", "rest_api"
+	Type                string             `json:"type"` // "local_storage", "storage", "rest_api"
+	Format              string             `json:"format,omitempty"`
 	OutputFormat        string             `json:"output_format"` // "parquet", "csv", "jsonl", "txt"
 	OutputPath          string             `json:"output_path"`
 	MetricsDir          string             `json:"metrics_dir,omitempty"`
@@ -82,6 +83,9 @@ type DestinationConfig struct {
 func (d *DestinationConfig) ApplyDefaults() {
 	d.Type = strings.ToLower(strings.TrimSpace(d.Type))
 	d.Type = OrDefault(d.Type, DefaultDestinationType)
+	if strings.TrimSpace(d.OutputFormat) == "" && strings.TrimSpace(d.Format) != "" {
+		d.OutputFormat = d.Format
+	}
 	d.OutputFormat = strings.ToLower(strings.TrimSpace(d.OutputFormat))
 	d.OutputFormat = OrDefault(d.OutputFormat, d.Type)
 

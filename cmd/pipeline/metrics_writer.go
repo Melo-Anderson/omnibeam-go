@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,7 +14,7 @@ import (
 	"github.com/parquet-go/parquet-go"
 )
 
-func writeExecutionMetrics(cfg *domain.PipelineConfig) {
+func writeExecutionMetrics(cfg *domain.PipelineConfig) error {
 	outDir := ""
 	if cfg.Destination.OutputPath != "" {
 		outDir = filepath.Dir(cfg.Destination.OutputPath)
@@ -21,10 +22,12 @@ func writeExecutionMetrics(cfg *domain.PipelineConfig) {
 		outDir = filepath.Dir(cfg.DLQConfig.QuarantinePath)
 	}
 	if outDir == "" || strings.HasPrefix(outDir, "gs://") {
-		return
+		return nil
 	}
 
-	_ = os.MkdirAll(outDir, 0755)
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return fmt.Errorf("failed creating metrics directory: %w", err)
+	}
 
 	var rowsWritten int64
 	var bytesWritten int64
@@ -113,8 +116,18 @@ func writeExecutionMetrics(cfg *domain.PipelineConfig) {
 		metrics.InvalidValueCounts["invalid_value_count_"+f.Name] = 0
 	}
 
-	mData, err := metrics.MarshalJSON()
-	if err == nil {
-		_ = os.WriteFile(filepath.Join(outDir, "metrics.json"), mData, 0644)
+	wmOutput, err := resolveWatermarkOutput(cfg, outDir, totalRead, rowsWritten)
+	if err != nil {
+		return fmt.Errorf("failed resolving watermark output: %w", err)
 	}
+	metrics.Watermark = wmOutput
+
+	mData, err := metrics.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("failed marshaling metrics: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(outDir, "metrics.json"), mData, 0644); err != nil {
+		return fmt.Errorf("failed writing metrics file: %w", err)
+	}
+	return nil
 }

@@ -46,6 +46,7 @@ type DatabaseSourceConfig struct {
 	PoolConfig      PoolConfig       `json:"pool_config"`
 	Resilience      ResilienceConfig `json:"resilience,omitempty"`
 	Schema          Schema           `json:"schema"`
+	Watermark       *WatermarkConfig `json:"watermark,omitempty"`
 }
 
 // BaseQuery returns the base SQL statement to be wrapped or executed.
@@ -61,6 +62,44 @@ func (cfg *DatabaseSourceConfig) BaseQuery() string {
 		return fmt.Sprintf("SELECT %s FROM %s WHERE %s", cols, cfg.Table, cfg.QueryFilter)
 	}
 	return fmt.Sprintf("SELECT %s FROM %s", cols, cfg.Table)
+}
+
+// EffectiveQuery returns the SQL query with incremental watermark predicate applied or placeholder replaced.
+func (cfg *DatabaseSourceConfig) EffectiveQuery() (string, error) {
+	if cfg == nil {
+		return "", nil
+	}
+	base := cfg.BaseQuery()
+	hasPlaceholder := strings.Contains(base, ":watermark_value")
+
+	if cfg.Watermark == nil {
+		if hasPlaceholder {
+			return "", fmt.Errorf("query contains :watermark_value placeholder but no watermark configuration was provided")
+		}
+		return base, nil
+	}
+
+	if err := cfg.Watermark.Validate(); err != nil {
+		return "", err
+	}
+
+	inc, err := cfg.Watermark.Incoming()
+	if err != nil {
+		return "", err
+	}
+
+	if hasPlaceholder {
+		if inc == nil {
+			return "", fmt.Errorf("query contains :watermark_value placeholder but watermark value is empty or null")
+		}
+		return strings.ReplaceAll(base, ":watermark_value", inc.SQLLiteral()), nil
+	}
+
+	if inc == nil {
+		return base, nil
+	}
+
+	return fmt.Sprintf("SELECT * FROM (%s) AS _wm WHERE %s > %s", base, cfg.Watermark.Column, inc.SQLLiteral()), nil
 }
 
 // ApplyDefaults populates default values for omitted fields in DatabaseSourceConfig.

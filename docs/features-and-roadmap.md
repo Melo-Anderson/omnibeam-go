@@ -46,6 +46,12 @@ Esta seção reúne todas as capacidades funcionais, técnicas e de engenharia 1
   - Ingestão flexível através de 4 estratégias de paginação (**Número de Página**, **Offset/Limite**, **Tokens de Cursor** e **Cabeçalhos de Link**).
   - Controle ativo de taxa de requisições (*Rate Limiting*) via Token Bucket e retries com backoff exponencial.
   - Ciclo de vida DoFn com `Setup`/`Teardown` por bundle para reuso de clientes e conexões HTTP sem handshake TLS repetido.
+* **Carga Incremental com Watermark e Paginação de Estado**:
+  - Suporte nativo a **Watermark Incremental** tipado (`integer`, `float`, `timestamp`, `date`, `string`) para bancos relacionais (SQL) e APIs REST.
+  - **Injeção de Predicado SQL Transparente**: Aplicação de predicado via subquery segura (`SELECT * FROM (<query>) AS _wm WHERE <col> > <literal>`) preservando `ORDER BY`, CTEs e joins, ou via placeholder explícito `:watermark_value`.
+  - **Offset de Estado REST**: Deslocamento automático do offset inicial em paginação `offset_limit` e avanço exato por $\text{offset} + \text{TotalRecordsRead}$ (registros válidos + DLQ).
+  - **Telemetria de Estado em `metrics.json`**: Cálculo pós-execução do valor MAX via varredura colunar em Parquet, garantindo invariante de não-regressão e preservação estrita de valor recebido em execuções de zero linhas.
+  - **Tratamento de Falhas (`error.txt`)**: Geração automática de arquivo com a mensagem exata de erro no diretório de métricas em caso de falha fatal.
 
 ### 📤 2.2. Destinos e Exportação Analítica (Sinks)
 * **Google BigQuery Storage Write API (gRPC Pending Streams)**:

@@ -92,6 +92,7 @@ func main() {
 
 	if err := executePipeline(context.Background(), cfg); err != nil {
 		slog.Error("pipeline execution failed", "error", err)
+		writeErrorFile(cfg.GetMetricsOutputDir(), err)
 		os.Exit(1)
 	}
 }
@@ -161,7 +162,9 @@ func executePipeline(ctx context.Context, cfg *domain.PipelineConfig) error {
 		return fmt.Errorf("beam pipeline execution failed: %w", err)
 	}
 
-	writeExecutionMetrics(cfg)
+	if err := writeExecutionMetrics(cfg); err != nil {
+		return fmt.Errorf("failed writing execution metrics: %w", err)
+	}
 	return nil
 }
 
