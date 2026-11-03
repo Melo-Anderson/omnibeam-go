@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net/http"
 	"net/url"
@@ -100,7 +101,12 @@ func (r *RESTReader) EstimatePages(ctx context.Context, apiCfg any) ([]ports.Pag
 						case int:
 							totalCount = float64(v)
 						case string:
-							totalCount, _ = strconv.ParseFloat(v, 64)
+							parsed, perr := strconv.ParseFloat(v, 64)
+							if perr != nil {
+								slog.Warn("ignoring unparseable total count from API probe", "value", v, "error", perr)
+							} else {
+								totalCount = parsed
+							}
 						}
 
 						if totalCount > 0 && cfg.Pagination.PageSize > 0 {

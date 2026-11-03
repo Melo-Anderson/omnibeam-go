@@ -2,6 +2,7 @@ package sink
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/omnibeam/dataflow-compute-go/internal/beam/paged_api"
 	"github.com/omnibeam/dataflow-compute-go/internal/domain"
@@ -16,10 +17,21 @@ func init() {
 	ports.RegisterSink("http_api", restSinkBuilderFactory)
 }
 
+func resolveCredential(ctx context.Context, sec ports.SecretResolver, ref string) (string, error) {
+	if ref == "" || sec == nil {
+		return "", nil
+	}
+	token, err := sec.Resolve(ctx, ref)
+	if err != nil {
+		return "", fmt.Errorf("resolving destination credential %q: %w", ref, err)
+	}
+	return token, nil
+}
+
 func restWriterFactory(ctx context.Context, cfg *domain.PipelineConfig, sec ports.SecretResolver) (ports.BatchAPIWriter, error) {
-	var token string
-	if cfg.Destination.Endpoint.CredentialRef != "" && sec != nil {
-		token, _ = sec.Resolve(ctx, cfg.Destination.Endpoint.CredentialRef)
+	token, err := resolveCredential(ctx, sec, cfg.Destination.Endpoint.CredentialRef)
+	if err != nil {
+		return nil, err
 	}
 	return NewAPISink(cfg.Destination.Endpoint, cfg.Destination.APIOptions, token), nil
 }
@@ -29,9 +41,9 @@ func restSinkBuilderFactory(ctx context.Context, cfg *domain.PipelineConfig, dep
 	if err != nil {
 		return nil, err
 	}
-	var secretToken string
-	if cfg.Destination.Endpoint.CredentialRef != "" && deps.Secrets != nil {
-		secretToken, _ = deps.Secrets.Resolve(ctx, cfg.Destination.Endpoint.CredentialRef)
+	secretToken, err := resolveCredential(ctx, deps.Secrets, cfg.Destination.Endpoint.CredentialRef)
+	if err != nil {
+		return nil, err
 	}
 	return &paged_api.BatchAPIBeamSink{
 		Endpoint:    cfg.Destination.Endpoint,

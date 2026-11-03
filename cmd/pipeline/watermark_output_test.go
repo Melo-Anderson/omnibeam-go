@@ -191,3 +191,40 @@ func TestResolveWatermarkOutput_NoWatermarkConfigReturnsNil(t *testing.T) {
 		t.Fatalf("expected nil output for config without watermark, got %+v", out)
 	}
 }
+
+func TestResolveWatermarkOutput_InvalidIncomingOffsetFails(t *testing.T) {
+	incoming := "not-a-number"
+	cfg := &domain.PipelineConfig{
+		APISource: &domain.APISourceConfig{
+			Pagination: domain.APIPaginationConfig{
+				Type:      domain.PaginationOffsetLimit,
+				PageParam: "offset",
+			},
+			Watermark: &domain.WatermarkConfig{
+				Column: "offset",
+				Type:   domain.WatermarkTypeInteger,
+				Value:  &incoming,
+			},
+		},
+	}
+
+	if _, err := resolveWatermarkOutput(cfg, t.TempDir(), 10, 10); err == nil {
+		t.Fatal("expected error for non-numeric incoming offset watermark")
+	}
+}
+
+func TestResolveWatermarkOutput_UnreadableOutputDirFails(t *testing.T) {
+	cfg := &domain.PipelineConfig{
+		DatabaseSource: &domain.DatabaseSourceConfig{
+			Watermark: &domain.WatermarkConfig{
+				Column: "id",
+				Type:   domain.WatermarkTypeInteger,
+			},
+		},
+	}
+
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+	if _, err := resolveWatermarkOutput(cfg, missing, 5, 5); err == nil {
+		t.Fatal("expected error when output directory cannot be read")
+	}
+}
