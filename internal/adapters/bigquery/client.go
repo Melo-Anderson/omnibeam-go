@@ -46,8 +46,7 @@ func (a *StorageWriteAdapter) AppendRecords(_ context.Context, streamName string
 	var dlqs []*domain.DeadLetterRecord
 	written := 0
 	for _, rec := range records {
-		rowBytes, err := SerializeRecordToJSONProto(rec, schema)
-		if err != nil {
+		if _, err := SerializeRecordToJSONProto(rec, schema); err != nil {
 			dlqs = append(dlqs, &domain.DeadLetterRecord{
 				RawPayload:   fmt.Sprintf("%v", rec.Values),
 				ErrorMessage: fmt.Sprintf("bigquery: row serialization failed: %v", err),
@@ -55,7 +54,6 @@ func (a *StorageWriteAdapter) AppendRecords(_ context.Context, streamName string
 			})
 			continue
 		}
-		_ = rowBytes
 		written++
 	}
 

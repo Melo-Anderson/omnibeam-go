@@ -172,7 +172,11 @@ func resolveWatermarkOutput(cfg *domain.PipelineConfig, outDir string, totalRead
 	if isOffset {
 		startOffset := 0
 		if wm.Value != nil && strings.TrimSpace(*wm.Value) != "" {
-			startOffset, _ = strconv.Atoi(strings.TrimSpace(*wm.Value))
+			parsed, err := strconv.Atoi(strings.TrimSpace(*wm.Value))
+			if err != nil {
+				return nil, fmt.Errorf("invalid incoming offset watermark %q: %w", *wm.Value, err)
+			}
+			startOffset = parsed
 		}
 		newOffset := startOffset + int(totalRead)
 		newOffsetStr := strconv.Itoa(newOffset)
@@ -200,7 +204,10 @@ func resolveWatermarkOutput(cfg *domain.PipelineConfig, outDir string, totalRead
 	}
 
 	var parquetFiles []string
-	entries, _ := os.ReadDir(outDir)
+	entries, err := os.ReadDir(outDir)
+	if err != nil {
+		return nil, fmt.Errorf("reading output dir %q for watermark: %w", outDir, err)
+	}
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".parquet") {
 			parquetFiles = append(parquetFiles, filepath.Join(outDir, entry.Name()))
