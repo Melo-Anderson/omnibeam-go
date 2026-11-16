@@ -15,91 +15,21 @@ import (
 )
 
 func writeExecutionMetrics(cfg *domain.PipelineConfig) error {
-	outDir := ""
-	if cfg.Destination.OutputPath != "" {
-		outDir = filepath.Dir(cfg.Destination.OutputPath)
-	} else if cfg.DLQConfig.QuarantinePath != "" {
-		outDir = filepath.Dir(cfg.DLQConfig.QuarantinePath)
-	}
-	if outDir == "" || strings.HasPrefix(outDir, "gs://") {
+	outDir := resolveOutputDir(cfg)
+	if outDir == "" || isRemoteURI(outDir) {
 		return nil
 	}
-
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return fmt.Errorf("failed creating metrics directory: %w", err)
 	}
 
-	var rowsWritten int64
-	var bytesWritten int64
-	var filesWritten int64
-	var lastChecksum string
+	rowsWritten, bytesWritten, filesWritten, lastChecksum := scanOutputMetrics(outDir, cfg.Destination.FormatOptions.IncludeHeader)
 
-	entries, _ := os.ReadDir(outDir)
-	for _, entry := range entries {
-		if entry.IsDir() || entry.Name() == "metrics.json" || entry.Name() == "dlq.jsonl" || strings.HasSuffix(entry.Name(), ".jsonl") {
-			continue
-		}
-		filePath := filepath.Join(outDir, entry.Name())
-		fi, err := entry.Info()
-		if err != nil {
-			continue
-		}
-		bytesWritten += fi.Size()
-		filesWritten++
-
-		if strings.HasSuffix(entry.Name(), ".parquet") {
-			f, err := os.Open(filePath)
-			if err == nil {
-				pf, err := parquet.OpenFile(f, fi.Size())
-				if err == nil {
-					rowsWritten += pf.NumRows()
-				}
-				_ = f.Close()
-			}
-		} else if strings.HasSuffix(entry.Name(), ".csv") || strings.HasSuffix(entry.Name(), ".txt") {
-			f, err := os.Open(filePath)
-			if err == nil {
-				sc := bufio.NewScanner(f)
-				var lineCount int64
-				for sc.Scan() {
-					if strings.TrimSpace(sc.Text()) != "" {
-						lineCount++
-					}
-				}
-				_ = f.Close()
-				if lineCount > 0 && cfg.Destination.FormatOptions.IncludeHeader {
-					lineCount--
-				}
-				rowsWritten += lineCount
-			}
-		}
-
-		// Calculate checksum via streaming buffer to avoid loading multi-GB files into RAM
-		f, err := os.Open(filePath)
-		if err == nil {
-			h := md5.New()
-			if _, copyErr := io.Copy(h, f); copyErr == nil {
-				lastChecksum = hex.EncodeToString(h.Sum(nil))
-			}
-			_ = f.Close()
-		}
-	}
-
-	var dlqCount int64
 	dlqPath := cfg.DLQConfig.QuarantinePath
 	if dlqPath == "" {
 		dlqPath = filepath.Join(outDir, "dlq.jsonl")
 	}
-	if f, err := os.Open(dlqPath); err == nil {
-		sc := bufio.NewScanner(f)
-		for sc.Scan() {
-			if strings.TrimSpace(sc.Text()) != "" {
-				dlqCount++
-			}
-		}
-		_ = f.Close()
-	}
-
+	dlqCount := countDLQRecords(dlqPath)
 	totalRead := rowsWritten + dlqCount
 
 	metrics := domain.NewPipelineMetrics(cfg.PipelineID, cfg.RunID)
@@ -130,4 +60,95 @@ func writeExecutionMetrics(cfg *domain.PipelineConfig) error {
 		return fmt.Errorf("failed writing metrics file: %w", err)
 	}
 	return nil
+}
+
+func resolveOutputDir(cfg *domain.PipelineConfig) string {
+	if cfg.Destination.OutputPath != "" {
+		return filepath.Dir(cfg.Destination.OutputPath)
+	}
+	if cfg.DLQConfig.QuarantinePath != "" {
+		return filepath.Dir(cfg.DLQConfig.QuarantinePath)
+	}
+	return ""
+}
+
+func scanOutputMetrics(outDir string, includeHeader bool) (rowsWritten, bytesWritten, filesWritten int64, lastChecksum string) {
+	entries, _ := os.ReadDir(outDir)
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || name == "metrics.json" || name == "dlq.jsonl" || strings.HasSuffix(name, ".jsonl") {
+			continue
+		}
+		fi, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		filePath := filepath.Join(outDir, name)
+		bytesWritten += fi.Size()
+		filesWritten++
+
+		switch {
+		case strings.HasSuffix(name, ".parquet"):
+			rowsWritten += countParquetRows(filePath, fi.Size())
+		case strings.HasSuffix(name, ".csv"), strings.HasSuffix(name, ".txt"):
+			rowsWritten += countDelimitedRows(filePath, includeHeader)
+		}
+
+		if sum := fileMD5(filePath); sum != "" {
+			lastChecksum = sum
+		}
+	}
+	return rowsWritten, bytesWritten, filesWritten, lastChecksum
+}
+
+func countParquetRows(path string, size int64) int64 {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer func() { _ = f.Close() }()
+
+	pf, err := parquet.OpenFile(f, size)
+	if err != nil {
+		return 0
+	}
+	return pf.NumRows()
+}
+
+func countDelimitedRows(path string, includeHeader bool) int64 {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer func() { _ = f.Close() }()
+
+	var lines int64
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		if strings.TrimSpace(sc.Text()) != "" {
+			lines++
+		}
+	}
+	if lines > 0 && includeHeader {
+		lines--
+	}
+	return lines
+}
+
+func fileMD5(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = f.Close() }()
+
+	h := md5.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func countDLQRecords(dlqPath string) int64 {
+	return countDelimitedRows(dlqPath, false)
 }
