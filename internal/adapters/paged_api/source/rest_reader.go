@@ -41,123 +41,7 @@ func (r *RESTReader) EstimatePages(ctx context.Context, apiCfg any) ([]ports.Pag
 
 	switch cfg.Pagination.Type {
 	case domain.PaginationPageNumber, domain.PaginationOffsetLimit:
-		initialPage := cfg.Pagination.InitialPage
-		if initialPage == 0 && cfg.Pagination.Type == domain.PaginationPageNumber {
-			initialPage = 1
-		}
-
-		startOffset := 0
-		if cfg.Pagination.Type == domain.PaginationOffsetLimit && cfg.WatermarkIsOffset() && cfg.Watermark.Value != nil {
-			if n, err := strconv.Atoi(strings.TrimSpace(*cfg.Watermark.Value)); err == nil && n > 0 {
-				startOffset = n
-			}
-		}
-
-		// Check if TotalPagesHint is given
-		if cfg.Pagination.TotalPagesHint > 0 {
-			slices := make([]ports.PageSlice, cfg.Pagination.TotalPagesHint)
-			for i := 0; i < cfg.Pagination.TotalPagesHint; i++ {
-				pageIdx := i + initialPage
-				if cfg.Pagination.Type == domain.PaginationOffsetLimit {
-					pageIdx = startOffset + (i * cfg.Pagination.PageSize)
-				}
-				slices[i] = ports.PageSlice{
-					PageIndex: pageIdx,
-					PageSize:  cfg.Pagination.PageSize,
-				}
-			}
-			return slices, nil
-		}
-
-		// Probe request to detect total count if TotalCountPath is configured
-		if cfg.Pagination.TotalCountPath != "" {
-			pageParam := cfg.Pagination.PageParam
-			if pageParam == "" {
-				pageParam = "page"
-			}
-			sizeParam := cfg.Pagination.SizeParam
-			if sizeParam == "" {
-				sizeParam = "size"
-			}
-			probeURL := fmt.Sprintf("%s%s?%s=%d&%s=1",
-				cfg.BaseURL,
-				cfg.Endpoint,
-				pageParam,
-				initialPage,
-				sizeParam,
-			)
-			req, err := http.NewRequestWithContext(ctx, "GET", probeURL, nil)
-			if err == nil {
-				resp, err := r.client.Do(req)
-				if err == nil {
-					defer resp.Body.Close()
-					body, _ := io.ReadAll(resp.Body)
-					totalVal, err := jsonutils.ExtractPath(body, cfg.Pagination.TotalCountPath)
-					if err == nil && totalVal != nil {
-						var totalCount float64
-						switch v := totalVal.(type) {
-						case float64:
-							totalCount = v
-						case int:
-							totalCount = float64(v)
-						case string:
-							parsed, perr := strconv.ParseFloat(v, 64)
-							if perr != nil {
-								slog.Warn("ignoring unparseable total count from API probe", "value", v, "error", perr)
-							} else {
-								totalCount = parsed
-							}
-						}
-
-						if totalCount > 0 && cfg.Pagination.PageSize > 0 {
-							if cfg.Pagination.Type == domain.PaginationOffsetLimit && startOffset > 0 {
-								if float64(startOffset) >= totalCount {
-									return []ports.PageSlice{{
-										PageIndex: startOffset,
-										PageSize:  cfg.Pagination.PageSize,
-									}}, nil
-								}
-								remaining := totalCount - float64(startOffset)
-								numPages := int(math.Ceil(remaining / float64(cfg.Pagination.PageSize)))
-								slices := make([]ports.PageSlice, numPages)
-								for i := 0; i < numPages; i++ {
-									slices[i] = ports.PageSlice{
-										PageIndex: startOffset + (i * cfg.Pagination.PageSize),
-										PageSize:  cfg.Pagination.PageSize,
-									}
-								}
-								return slices, nil
-							}
-
-							numPages := int(math.Ceil(totalCount / float64(cfg.Pagination.PageSize)))
-							slices := make([]ports.PageSlice, numPages)
-							for i := 0; i < numPages; i++ {
-								pageIdx := i + initialPage
-								if cfg.Pagination.Type == domain.PaginationOffsetLimit {
-									pageIdx = i * cfg.Pagination.PageSize
-								}
-								slices[i] = ports.PageSlice{
-									PageIndex: pageIdx,
-									PageSize:  cfg.Pagination.PageSize,
-								}
-							}
-							return slices, nil
-						}
-					}
-				}
-			}
-		}
-
-		// Default fallback
-		defaultPage := initialPage
-		if cfg.Pagination.Type == domain.PaginationOffsetLimit && startOffset > 0 {
-			defaultPage = startOffset
-		}
-		return []ports.PageSlice{{
-			PageIndex: defaultPage,
-			PageSize:  cfg.Pagination.PageSize,
-		}}, nil
-
+		return r.estimateNumberedOrOffsetPages(ctx, cfg), nil
 	default:
 		// cursor_token and link_header start with 1 initial page slice
 		return []ports.PageSlice{{
@@ -165,6 +49,134 @@ func (r *RESTReader) EstimatePages(ctx context.Context, apiCfg any) ([]ports.Pag
 			PageSize:  cfg.Pagination.PageSize,
 		}}, nil
 	}
+}
+
+func (r *RESTReader) estimateNumberedOrOffsetPages(ctx context.Context, cfg domain.APISourceConfig) []ports.PageSlice {
+	initialPage := cfg.Pagination.InitialPage
+	if initialPage == 0 && cfg.Pagination.Type == domain.PaginationPageNumber {
+		initialPage = 1
+	}
+
+	startOffset := 0
+	if cfg.Pagination.Type == domain.PaginationOffsetLimit && cfg.WatermarkIsOffset() && cfg.Watermark.Value != nil {
+		if n, err := strconv.Atoi(strings.TrimSpace(*cfg.Watermark.Value)); err == nil && n > 0 {
+			startOffset = n
+		}
+	}
+
+	if cfg.Pagination.TotalPagesHint > 0 {
+		return buildHintedSlices(cfg, initialPage, startOffset)
+	}
+
+	if cfg.Pagination.TotalCountPath != "" && cfg.Pagination.PageSize > 0 {
+		if totalCount, ok := r.probeTotalCount(ctx, cfg, initialPage); ok && totalCount > 0 {
+			return buildSlicesFromTotalCount(cfg, totalCount, initialPage, startOffset)
+		}
+	}
+
+	defaultPage := initialPage
+	if cfg.Pagination.Type == domain.PaginationOffsetLimit && startOffset > 0 {
+		defaultPage = startOffset
+	}
+	return []ports.PageSlice{{
+		PageIndex: defaultPage,
+		PageSize:  cfg.Pagination.PageSize,
+	}}
+}
+
+func buildHintedSlices(cfg domain.APISourceConfig, initialPage, startOffset int) []ports.PageSlice {
+	slices := make([]ports.PageSlice, cfg.Pagination.TotalPagesHint)
+	for i := 0; i < cfg.Pagination.TotalPagesHint; i++ {
+		pageIdx := i + initialPage
+		if cfg.Pagination.Type == domain.PaginationOffsetLimit {
+			pageIdx = startOffset + (i * cfg.Pagination.PageSize)
+		}
+		slices[i] = ports.PageSlice{
+			PageIndex: pageIdx,
+			PageSize:  cfg.Pagination.PageSize,
+		}
+	}
+	return slices
+}
+
+func (r *RESTReader) probeTotalCount(ctx context.Context, cfg domain.APISourceConfig, initialPage int) (float64, bool) {
+	pageParam := cfg.Pagination.PageParam
+	if pageParam == "" {
+		pageParam = "page"
+	}
+	sizeParam := cfg.Pagination.SizeParam
+	if sizeParam == "" {
+		sizeParam = "size"
+	}
+	probeURL := fmt.Sprintf("%s%s?%s=%d&%s=1",
+		cfg.BaseURL, cfg.Endpoint, pageParam, initialPage, sizeParam,
+	)
+	req, err := http.NewRequestWithContext(ctx, "GET", probeURL, nil)
+	if err != nil {
+		return 0, false
+	}
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return 0, false
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	totalVal, err := jsonutils.ExtractPath(body, cfg.Pagination.TotalCountPath)
+	if err != nil || totalVal == nil {
+		return 0, false
+	}
+
+	switch v := totalVal.(type) {
+	case float64:
+		return v, true
+	case int:
+		return float64(v), true
+	case string:
+		parsed, perr := strconv.ParseFloat(v, 64)
+		if perr != nil {
+			slog.Warn("ignoring unparseable total count from API probe", "value", v, "error", perr)
+			return 0, false
+		}
+		return parsed, true
+	default:
+		return 0, false
+	}
+}
+
+func buildSlicesFromTotalCount(cfg domain.APISourceConfig, totalCount float64, initialPage, startOffset int) []ports.PageSlice {
+	if cfg.Pagination.Type == domain.PaginationOffsetLimit && startOffset > 0 {
+		if float64(startOffset) >= totalCount {
+			return []ports.PageSlice{{
+				PageIndex: startOffset,
+				PageSize:  cfg.Pagination.PageSize,
+			}}
+		}
+		remaining := totalCount - float64(startOffset)
+		numPages := int(math.Ceil(remaining / float64(cfg.Pagination.PageSize)))
+		slices := make([]ports.PageSlice, numPages)
+		for i := 0; i < numPages; i++ {
+			slices[i] = ports.PageSlice{
+				PageIndex: startOffset + (i * cfg.Pagination.PageSize),
+				PageSize:  cfg.Pagination.PageSize,
+			}
+		}
+		return slices
+	}
+
+	numPages := int(math.Ceil(totalCount / float64(cfg.Pagination.PageSize)))
+	slices := make([]ports.PageSlice, numPages)
+	for i := 0; i < numPages; i++ {
+		pageIdx := i + initialPage
+		if cfg.Pagination.Type == domain.PaginationOffsetLimit {
+			pageIdx = i * cfg.Pagination.PageSize
+		}
+		slices[i] = ports.PageSlice{
+			PageIndex: pageIdx,
+			PageSize:  cfg.Pagination.PageSize,
+		}
+	}
+	return slices
 }
 
 // ReadPage fetches a single page and emits records on a channel.

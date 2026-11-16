@@ -7,10 +7,14 @@ import (
 	"strings"
 )
 
+func isRemoteURI(path string) bool {
+	return strings.HasPrefix(path, "gs://") || strings.HasPrefix(path, "gs:\\")
+}
+
 // writeErrorFile creates error.txt containing the failure message in the output directory.
 // It is best-effort: failures to write are logged and never mask the original cause.
 func writeErrorFile(outDir string, cause error) {
-	if cause == nil || outDir == "" || strings.HasPrefix(outDir, "gs://") || strings.HasPrefix(outDir, "gs:\\") {
+	if cause == nil || outDir == "" || isRemoteURI(outDir) {
 		return
 	}
 	if err := os.MkdirAll(outDir, 0755); err != nil {
